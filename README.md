@@ -253,11 +253,7 @@ See [CAPABILITIES.md](CAPABILITIES.md) for the full 200+ tool breakdown.
 
 ---
 
-## Screenshots
 
-| Server startup | Claude Desktop MCP | Fallback CLI |
-|----------------|-------------------|--------------|
-| ![server](assets/usage_server1.png) | ![mcp](assets/usage_output.png) | ![cli](assets/usage_input.png) |
 
 ---
 
