@@ -1,0 +1,59 @@
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+config/secrets.*
+*.key
+*.pem
+*.pfx
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+MANIFEST
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+aegis-360-env/
+hexstrike-env/
+env/
+
+# ── Logs & output ─────────────────────────────────────────────────────────────
+*.log
+logs/
+reports/
+results/
+evidence/
+
+# ── Large compiled tool binaries (install separately) ─────────────────────────
+tools/aflplusplus/
+tools/codeql/
+tools/rr-debugger/
+tools/rr/
+tools/xsser/
+
+# ── Node ─────────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# ── Archives & packages ───────────────────────────────────────────────────────
+*.zip
+*.tar.gz
+*.tar.bz2
+
+# ── Temp / screenshots ────────────────────────────────────────────────────────
+/tmp/
+*.tmp
+aegis360_screenshot_*.png
