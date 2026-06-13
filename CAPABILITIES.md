@@ -1,4 +1,4 @@
-# Aegis-360 AI v6.0 — Capabilities Reference
+# Aegis-360 AI v1.1.0 — Capabilities Reference
 
 **Architecture:** 34,423 lines of code across 5 files — Flask API server + FastMCP bridge exposing 200+ tools to Claude Desktop. 123/127 tools verified at 98.4% success rate.
 

@@ -1,4 +1,4 @@
-# Aegis-360 AI v6.0 — Tool Installation Reference
+# Aegis-360 AI v1.1.0 — Tool Installation Reference
 
 **Coverage:** 123/127 tools (96.9%) | **Last verified:** 2026-05-16  
 **Success rate:** 98.4% | **Server:** `http://127.0.0.1:8888`
