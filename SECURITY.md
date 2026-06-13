@@ -15,7 +15,7 @@ Flask API, secret exposure, command injection in a helper), please report it
 
 ### How to report
 
-1. Email the maintainer at the address listed in the GitHub profile, **or**
+1. Email **[BinaryGalaxys](https://github.com/BinaryGalaxys)** via the contact listed on their GitHub profile, **or**
 2. Open a [GitHub Security Advisory](https://github.com/Mafia721/aegis-360-ai/security/advisories/new)
 
 Include:

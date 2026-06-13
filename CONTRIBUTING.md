@@ -1,6 +1,7 @@
 # Contributing to aegis-360-ai
 
 Thank you for your interest in contributing to **[aegis-360-ai](https://github.com/Mafia721/aegis-360-ai)**!
+Maintained by **[BinaryGalaxys](https://github.com/BinaryGalaxys)** — penetration testing & security tooling.
 
 ## Workflow
 
