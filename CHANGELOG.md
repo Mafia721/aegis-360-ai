@@ -39,6 +39,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `CAPABILITIES.md` and `TOOLS.md` version updated to v1.1.0
 - `CONTRIBUTING.md` repo links corrected, orchestrator phase guidance added, author set to BinaryGalaxys
 - `SECURITY.md` supported versions table updated (1.1.x active, 1.0.x best-effort), repo URL and maintainer contact corrected
+- README roadmap expanded with 16 planned features across 5 categories: AI & Orchestration, Reporting & Output, Tooling & Integration, Security & Workflow, LLM Security (Augustus)
 
 ---
 
