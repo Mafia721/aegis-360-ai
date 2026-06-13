@@ -269,9 +269,13 @@ See [CAPABILITIES.md](CAPABILITIES.md) for the full 200+ tool breakdown.
 
 ## Screenshots
 
-| Server startup | Claude Desktop MCP | Fallback CLI |
-|----------------|-------------------|--------------|
-| ![server](assets/usage_server1.png) | ![mcp](assets/usage_output.png) | ![cli](assets/usage_input.png) |
+<p align="center">
+  <img src="assets/aegis-360-logo.png" alt="Aegis-360 AI Logo" width="160"/>
+</p>
+
+| Server output | MCP task view | MCP recon output |
+|---------------|---------------|-----------------|
+| ![server](assets/usage_server2.png) | ![task](assets/usage_input.png) | ![recon](assets/usage_output.png) |
 
 ---
 
