@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.x     | ✅ Yes    |
+| 1.1.x   | ✅ Yes    |
+| 1.0.x   | ⚠️ Best-effort |
 
 ## Responsible disclosure
 
@@ -15,7 +16,7 @@ Flask API, secret exposure, command injection in a helper), please report it
 ### How to report
 
 1. Email the maintainer at the address listed in the GitHub profile, **or**
-2. Open a [GitHub Security Advisory](https://github.com/BinaryGalaxys/aegis-360-ai/security/advisories/new)
+2. Open a [GitHub Security Advisory](https://github.com/Mafia721/aegis-360-ai/security/advisories/new)
 
 Include:
 - A clear description of the vulnerability
