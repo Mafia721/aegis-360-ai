@@ -28,7 +28,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Architecture updated to include orchestrator layer between Claude Code and Claude API
 - AI model routing extended: DeepSeek V4 Pro added for recon/enumeration/vuln analysis phases
-- README architecture diagram updated to reflect orchestrator and bundled tools
+- README architecture diagram, component table, and features list updated to reflect orchestrator and bundled tools
+- README clone URL corrected to `Mafia721/aegis-360-ai`
+- README version banner updated to v1.1.0
+- README screenshots section updated — replaced old HEXSTRIKE-branded server screenshot with `usage_server2.png`, removed logo image
+- README contributing section added with workflow, tool integration steps, and security disclosure note
+- README author section updated with GitHub profile link for BinaryGalaxys
+- README stars badge added
+- `INSTALL.md` version updated to v1.1.0, all repo URLs corrected to `Mafia721/aegis-360-ai`, `hexchat.py` references replaced with `aegis360chat.py`
+- `CAPABILITIES.md` and `TOOLS.md` version updated to v1.1.0
+- `CONTRIBUTING.md` repo links corrected, orchestrator phase guidance added, author set to BinaryGalaxys
+- `SECURITY.md` supported versions table updated (1.1.x active, 1.0.x best-effort), repo URL and maintainer contact corrected
 
 ---
 
