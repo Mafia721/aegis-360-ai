@@ -14,6 +14,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Kali%20Linux-red?logo=linux)](https://kali.org)
 [![Status](https://img.shields.io/badge/Status-Active-brightgreen)]()
+[![Stars](https://img.shields.io/github/stars/Mafia721/aegis-360-ai?style=social)](https://github.com/Mafia721/aegis-360-ai/stargazers)
 
 **Aegis-360 AI** is an AI-augmented penetration testing framework for professional red teamers,
 bug bounty hunters, and CTF players. It exposes 200+ security tools to Claude Desktop via the
