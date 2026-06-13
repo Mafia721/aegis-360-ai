@@ -307,4 +307,4 @@ MIT License — see [LICENSE](LICENSE).
 
 ## Author
 
-**BinaryGalaxys** — penetration testing & security tooling.
+**[BinaryGalaxys](https://github.com/BinaryGalaxys)** — penetration testing & security tooling.
