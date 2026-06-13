@@ -1,4 +1,4 @@
-# Aegis-360 AI v6.0 — Installation Guide
+# Aegis-360 AI v1.1.0 — Installation Guide
 
 ## System Requirements
 
@@ -18,7 +18,7 @@
 ## Quick Start (Kali/Ubuntu)
 
 ```bash
-git clone https://github.com/YOUR_ORG/aegis-360-ai.git
+git clone https://github.com/Mafia721/aegis-360-ai.git
 cd aegis-360-ai
 cp .env.example .env
 # Edit .env and fill in your API keys
@@ -46,7 +46,7 @@ sudo apt-get update && sudo apt-get install -y \
     whois dnsutils netdiscover arp-scan nbtscan
 
 # Clone and enter project
-git clone https://github.com/YOUR_ORG/aegis-360-ai.git
+git clone https://github.com/Mafia721/aegis-360-ai.git
 cd aegis-360-ai
 
 # Configure environment
@@ -78,7 +78,7 @@ Kali includes most security tools by default. Installation is simpler:
 sudo apt-get update && sudo apt-get install -y \
     python3-venv python3-dev build-essential
 
-git clone https://github.com/YOUR_ORG/aegis-360-ai.git
+git clone https://github.com/Mafia721/aegis-360-ai.git
 cd aegis-360-ai
 cp .env.example .env && nano .env
 
@@ -103,7 +103,7 @@ sed "s|/YOUR/INSTALL/PATH|${INSTALL_PATH}|g" \
 brew install python@3.13 git nmap masscan nikto
 brew install --cask chromium
 
-git clone https://github.com/YOUR_ORG/aegis-360-ai.git
+git clone https://github.com/Mafia721/aegis-360-ai.git
 cd aegis-360-ai
 cp .env.example .env && nano .env
 
@@ -226,16 +226,16 @@ python3 aegis_360_server.py --port 8888
 source aegis-360-env/bin/activate
 
 # Interactive chat
-python3 hexchat.py
+python3 aegis360chat.py
 
 # Lock to specific model
-python3 hexchat.py --model llama33
+python3 aegis360chat.py --model llama33
 
 # One-shot agent task
-python3 hexchat.py --agent "run nmap scan on 192.168.1.0/24"
+python3 aegis360chat.py --agent "run nmap scan on 192.168.1.0/24"
 
 # Recon mode
-python3 hexchat.py --recon
+python3 aegis360chat.py --recon
 ```
 
 ### Mode 3: Direct API (REST)
