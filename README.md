@@ -105,7 +105,7 @@ Kali Linux ships with most tools. For the full 150+ tool list see
 ### Quick install (Linux / macOS)
 
 ```bash
-git clone https://github.com/BinaryGalaxys/aegis-360-ai.git
+git clone https://github.com/Mafia721/aegis-360-ai.git
 cd aegis-360-ai
 chmod +x install.sh
 ./install.sh
