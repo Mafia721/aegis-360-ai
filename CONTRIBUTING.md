@@ -11,7 +11,7 @@ Thank you for your interest in contributing!
 5. **Test** your changes (start the server and verify the endpoint works)
 6. **Commit**: `git commit -m "feat: short description"`
 7. **Push**: `git push origin feature/your-feature-name`
-8. **Open a pull request** against the `main` branch
+8. **Open a pull request** against the `master` branch
 
 ## Commit message convention
 

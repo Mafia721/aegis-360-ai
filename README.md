@@ -290,6 +290,26 @@ See [CAPABILITIES.md](CAPABILITIES.md) for the full 200+ tool breakdown.
 
 ---
 
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
+
+**Quick steps:**
+1. Fork the repo and clone your fork
+2. Create a branch: `git checkout -b feature/your-feature-name`
+3. Make focused, tested changes
+4. Commit using conventional prefixes: `feat:` / `fix:` / `docs:` / `refactor:`
+5. Open a pull request against the `master` branch
+
+**Adding a new tool integration:**
+- Add the execution function to `aegis_360_server.py`
+- Register the MCP tool in `aegis_360_mcp.py`
+- Document it in `TOOLS.md` and `CAPABILITIES.md`
+
+> Found a vulnerability in the framework itself? Follow responsible disclosure via [SECURITY.md](SECURITY.md) rather than opening a public issue.
+
+---
+
 ## Disclaimer
 
 This framework is provided for **authorized security testing only**. You are solely
