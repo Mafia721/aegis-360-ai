@@ -28,10 +28,12 @@ MCP protocol, with an autonomous ReAct agent loop and smart multi-model AI routi
 
 - **200+ integrated security tools** — nmap, nuclei, ffuf, sqlmap, gobuster, subfinder, katana, dalfox, hydra, hashcat, and many more
 - **MCP bridge** — exposes all tools natively inside Claude Desktop via `aegis_360_mcp.py`
+- **Multi-model orchestration engine** — `aegis_360_orchestrator.py` enforces a strict phased workflow: DeepSeek V4 Pro handles recon/enumeration/vuln analysis; Claude API is gated exclusively to exploitation and reporting phases
 - **Autonomous ReAct agent** — multi-step exploit chains with tool selection, execution, and reasoning
-- **Smart AI routing** — Claude Sonnet for exploitation, Groq (free) for recon/planning/OSINT/code
+- **Smart AI routing** — Claude Sonnet for exploitation, Groq (free) for recon/planning/OSINT/code, DeepSeek V4 Pro for deep analysis phases
 - **Flask REST API** — 300+ endpoints at `http://127.0.0.1:8888`, fully scriptable
-- **Burp Suite integration** — proxy chaining, REST API, history export via custom extension
+- **Burp Suite integration** — proxy chaining, REST API, history export via `tools/burp_history_exporter.py` and `tools/fetch_burp_history.py`
+- **Bundled third-party tools** — arjun, dotdotpwn, mcphammer, paramspider, xsstrike (under `tools/`)
 - **LLM adversarial testing** — 210+ attack probes via Augustus integration
 - **Binary exploitation** — pwntools, angr, AFL++, rr-debugger, CodeQL
 - **Active Directory** — Impacket, Bloodhound, NetExec, evil-winrm
@@ -44,27 +46,34 @@ MCP protocol, with an autonomous ReAct agent loop and smart multi-model AI routi
 ## Architecture
 
 ```
-Claude Desktop
+Claude Desktop / Claude Code (Orchestrator)
     │
-    ├── aegis_360_mcp.py   (spawned per session — MCP stdio protocol)
+    ├── aegis_360_mcp.py       (spawned per session — MCP stdio protocol)
     │       │
     │       └── HTTP ──► aegis_360_server.py (127.0.0.1:8888)
     │                           │
     │                           ├── System tools (nmap, nuclei, ffuf, sqlmap …)
     │                           ├── Go tools (subfinder, httpx, katana …)
-    │                           ├── AI APIs (Anthropic, Groq, OpenRouter)
-    │                           └── Blueprints (modules/augustus, modules/praetorian)
+    │                           ├── AI APIs (Anthropic, Groq, OpenRouter, DeepSeek)
+    │                           └── Modules (augustus, praetorian)
     │
-    └── aegis360chat.py    (optional standalone CLI — no Claude Desktop needed)
+    ├── aegis_360_orchestrator.py  (multi-model phased workflow engine)
+    │       │
+    │       ├── DeepSeek V4 Pro  → RECON / ENUMERATION / VULN ANALYSIS
+    │       └── Claude API       → EXPLOITATION / REPORTING (post-gate only)
+    │
+    └── aegis360chat.py        (optional standalone CLI — no Claude Desktop needed)
 ```
 
 | Component | Role | Size |
 |-----------|------|------|
-| `aegis_360_server.py` | Flask API server — 300+ endpoints, all tool execution | ~19 500 lines |
+| `aegis_360_server.py` | Flask API server — 300+ endpoints, all tool execution | ~19 600 lines |
 | `aegis_360_mcp.py` | MCP client — 200+ tools exposed to Claude Desktop | ~13 100 lines |
-| `aegis360chat.py` | Standalone CLI with auto-routing between AI models | ~611 lines |
+| `aegis_360_orchestrator.py` | Multi-model phased workflow engine with validation gate | ~600+ lines |
+| `aegis360chat.py` | Standalone CLI with auto-routing between AI models | ~690 lines |
 | `modules/augustus.py` | LLM adversarial testing (210+ attack probes) | ~413 lines |
 | `modules/praetorian.py` | Praetorian commercial toolset integration | ~792 lines |
+| `tools/` | Bundled third-party tools (arjun, dotdotpwn, mcphammer, paramspider, xsstrike) | — |
 
 ---
 
@@ -223,14 +232,18 @@ options:
 
 | Task type | Model | Provider | Cost |
 |-----------|-------|----------|------|
-| Exploitation / payload | Claude Sonnet 4.6 | Anthropic | Paid |
-| Planning / strategy | Llama 3.3 70B | Groq | Free |
-| Recon / enumeration | Llama 3.3 70B | Groq | Free |
+| Orchestration / planning | Claude Code | Anthropic | Paid |
+| Recon / enumeration / vuln analysis | DeepSeek V4 Pro | DeepSeek | Paid |
+| Exploitation / payload (post-gate) | Claude Sonnet 4.6 | Anthropic | Paid |
+| Final report generation | Claude Sonnet 4.6 | Anthropic | Paid |
+| Planning / strategy (chat) | Llama 3.3 70B | Groq | Free |
 | OSINT / info gather | OpenAI OSS 120B | Groq | Free |
 | Code / PoC writing | Qwen3 32B | Groq | Free |
 | Log / output parsing | Qwen3 32B | Groq | Free |
 | Deep analysis | OpenAI OSS 120B | Groq | Free |
 | Quick lookups | Llama 3.1 8B | Groq | Free |
+
+> **Orchestrator note:** `aegis_360_orchestrator.py` enforces model separation via a validation gate — Claude API cannot be invoked in RECON, ENUMERATION, VULNERABILITY_ANALYSIS, or VALIDATION_GATE phases. Attempting to do so raises a `PhaseViolationError`. All handoffs are timestamped and logged.
 
 ---
 

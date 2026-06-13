@@ -5,6 +5,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- `aegis_360_orchestrator.py` — Multi-model phased workflow engine with enforced model separation
+  - Strict phase sequence: START → RECON → ENUMERATION → VULNERABILITY_ANALYSIS → VALIDATION_GATE → EXPLOITATION → REPORTING → END
+  - DeepSeek V4 Pro handles RECON, ENUMERATION, and VULNERABILITY_ANALYSIS phases
+  - Claude API (claude-sonnet-4-6) restricted to EXPLOITATION and REPORTING phases only
+  - `PhaseViolationError` raised if Claude API is invoked in any pre-exploitation phase
+  - `PhaseGateError` raised if exploitation is attempted before all pre-gate phases complete
+  - Workflow state persisted to `workflow_states/`, reports to `pentest_reports/`
+  - Flask Blueprint integration — mounts directly into `aegis_360_server.py`
+  - All model handoffs logged with timestamps and decision context
+- `tools/arjun` — HTTP parameter discovery tool (bundled)
+- `tools/dotdotpwn` — Directory traversal fuzzer (bundled)
+- `tools/mcphammer` — MCP-aware fuzzing/stress tool (bundled)
+- `tools/paramspider` — Parameter mining from web archives (bundled)
+- `tools/xsstrike` — Advanced XSS detection suite (bundled)
+- `tools/burp_history_exporter.py` — Burp Suite history export helper
+- `tools/fetch_burp_history.py` — Fetches and parses Burp proxy history via REST API
+
+### Changed
+- Architecture updated to include orchestrator layer between Claude Code and Claude API
+- AI model routing extended: DeepSeek V4 Pro added for recon/enumeration/vuln analysis phases
+- README architecture diagram updated to reflect orchestrator and bundled tools
+
+---
+
 ## [1.0.0] — 2025-06-11
 
 ### Added
