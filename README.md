@@ -277,12 +277,31 @@ See [CAPABILITIES.md](CAPABILITIES.md) for the full 200+ tool breakdown.
 
 ## Roadmap
 
+### AI & Orchestration
+- [ ] Auto-select best model per task based on historical success rates
+- [ ] Memory/context persistence across sessions for long engagements
+- [ ] Multi-agent parallelism — run recon and enumeration simultaneously
+
+### Reporting & Output
+- [ ] Auto-generated pentest reports (PDF/DOCX) with findings and remediation
 - [ ] Web UI dashboard for live tool output
-- [ ] Campaign manager (multi-target tracking)
-- [ ] Auto-generated pentest reports (PDF/DOCX)
+- [ ] Campaign manager for multi-target tracking
+
+### Tooling & Integration
+- [ ] Metasploit RPC integration for automated exploitation
 - [ ] Nuclei template auto-updater
-- [ ] Integration with Metasploit RPC
+- [ ] CVE feed integration — auto-suggest relevant nuclei templates per target
 - [ ] Docker container for portable deployment
+- [ ] VS Code extension for in-editor recon and scanning
+
+### Security & Workflow
+- [ ] Role-based access control for the Flask API
+- [ ] Engagement scoping — hard block tools from running outside defined IP/domain scope
+- [ ] Audit log — tamper-evident record of all commands run per engagement
+
+### LLM Security (Augustus)
+- [ ] Automated red-teaming report generation per provider
+- [ ] New probe categories: prompt injection via RAG, tool-call hijacking
 
 ---
 
