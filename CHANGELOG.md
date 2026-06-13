@@ -31,7 +31,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - README architecture diagram, component table, and features list updated to reflect orchestrator and bundled tools
 - README clone URL corrected to `Mafia721/aegis-360-ai`
 - README version banner updated to v1.1.0
-- README screenshots section updated — replaced old HEXSTRIKE-branded server screenshot with `usage_server2.png`, removed logo image
+- README screenshots section updated — replaced outdated server screenshot with `usage_server2.png`, removed logo image
 - README contributing section added with workflow, tool integration steps, and security disclosure note
 - README author section updated with GitHub profile link for BinaryGalaxys
 - README stars badge added
