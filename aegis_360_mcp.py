@@ -309,15 +309,15 @@ def setup_mcp_server(aegis360_client: Aegis360Client) -> FastMCP:
     #     - run_exploit_agent, smart_chat (auto-detects), model=claude
     #     - Examples: writing/running exploits, shellcode, RCE, privesc, lateral movement
     #
-    #   GROQ FREE MODELS  : Everything else
-    #     - Recon, crawling, enumeration  → llama3.3 / llama4
-    #     - OSINT, deep analysis          → gpt-oss 120B
-    #     - Code, PoC, log parsing        → qwen3 32B
-    #     - Quick lookups                 → fast (llama3.1-8b)
-    #     - Planning, strategy            → llama3.3
+    #   DEEPSEEK V4 PRO (OpenRouter) : ALL other task categories — no exceptions, no fallbacks
+    #     - Recon / Enumeration           → DeepSeek V4 Pro (OpenRouter)
+    #     - OSINT / Deep analysis         → DeepSeek V4 Pro (OpenRouter)
+    #     - Code / PoC scripts            → DeepSeek V4 Pro (OpenRouter)
+    #     - Quick lookups                 → DeepSeek V4 Pro (OpenRouter)
+    #     - Planning / Strategy           → DeepSeek V4 Pro (OpenRouter)
     #
-    #   chat_all_models broadcasts to FREE Groq models only (not Claude).
-    #   hexchat.py is a fallback CLI — use it only when Claude Desktop is unavailable.
+    #   No Groq or other provider fallbacks are used for these task categories.
+    #   aegis360chat.py is a fallback CLI — use it only when Claude Desktop is unavailable.
     # ============================================================================
 
     # ============================================================================
@@ -12695,15 +12695,17 @@ session.fuzz()
     @mcp.tool()
     def chat_llama33(message: str, context: str = "") -> Dict[str, Any]:
         """
-        Chat with Llama 3.3 70B on Groq — best general reasoning, very fast.
-        Use for: vulnerability analysis, attack chain planning, CVE research, pentest strategy.
+        Direct call to Llama 3.3 70B on Groq (explicit override only).
+        NOTE: Auto-routing does NOT use this model. All task categories
+        (recon, OSINT, code, lookups, planning) route exclusively to DeepSeek V4 Pro.
+        Use this tool only when you explicitly need Llama 3.3 70B by name.
 
         Args:
             message: Your question or task
             context: Optional session context (target info, previous findings)
         """
         data = {"model": "llama3.3", "message": message, "context": context}
-        logger.info(f"⚡ Routing to Llama 3.3 70B (Groq): {message[:60]}")
+        logger.info(f"⚡ Direct call to Llama 3.3 70B (Groq — explicit override): {message[:60]}")
         result = aegis360_client.safe_post("api/chat", data)
         if result.get("success"):
             resp = result.get("results", [{}])[0].get("response", "")
@@ -12713,15 +12715,17 @@ session.fuzz()
     @mcp.tool()
     def chat_llama4(message: str, context: str = "") -> Dict[str, Any]:
         """
-        Chat with Llama 4 Scout 17B on Groq — Meta's latest model.
-        Use for: deep analysis, reasoning about complex exploit chains.
+        Direct call to Llama 4 Scout 17B on Groq (explicit override only).
+        NOTE: Auto-routing does NOT use this model. All task categories
+        (recon, OSINT, code, lookups, planning) route exclusively to DeepSeek V4 Pro.
+        Use this tool only when you explicitly need Llama 4 by name.
 
         Args:
             message: Your question or task
             context: Optional session context
         """
         data = {"model": "llama4", "message": message, "context": context}
-        logger.info(f"🤖 Routing to Llama 4 Scout (Groq): {message[:60]}")
+        logger.info(f"🤖 Direct call to Llama 4 Scout (Groq — explicit override): {message[:60]}")
         result = aegis360_client.safe_post("api/chat", data)
         if result.get("success"):
             resp = result.get("results", [{}])[0].get("response", "")
@@ -12731,15 +12735,17 @@ session.fuzz()
     @mcp.tool()
     def chat_qwen3(message: str, context: str = "") -> Dict[str, Any]:
         """
-        Chat with Qwen3 32B on Groq — best for code generation tasks.
-        Use for: writing exploit scripts, custom tools, shellcode, PoC code, automation.
+        Direct call to Qwen3 32B on Groq (explicit override only).
+        NOTE: Auto-routing does NOT use this model. All task categories
+        (recon, OSINT, code, lookups, planning) route exclusively to DeepSeek V4 Pro.
+        Use this tool only when you explicitly need Qwen3 32B by name.
 
         Args:
             message: Your code task or question
             context: Optional session context
         """
         data = {"model": "qwen3", "message": message, "context": context}
-        logger.info(f"🤖 Routing to Qwen3 32B (Groq): {message[:60]}")
+        logger.info(f"🤖 Direct call to Qwen3 32B (Groq — explicit override): {message[:60]}")
         result = aegis360_client.safe_post("api/chat", data)
         if result.get("success"):
             resp = result.get("results", [{}])[0].get("response", "")
@@ -12749,15 +12755,17 @@ session.fuzz()
     @mcp.tool()
     def chat_gpt_oss(message: str, context: str = "") -> Dict[str, Any]:
         """
-        Chat with OpenAI OSS 120B on Groq — largest available free model.
-        Use for: deep vulnerability research, complex multi-step reasoning, thorough analysis.
+        Direct call to OpenAI OSS 120B on Groq (explicit override only).
+        NOTE: Auto-routing does NOT use this model. All task categories
+        (recon, OSINT, code, lookups, planning) route exclusively to DeepSeek V4 Pro.
+        Use this tool only when you explicitly need GPT-OSS 120B by name.
 
         Args:
             message: Your question or task
             context: Optional session context
         """
         data = {"model": "gpt-oss", "message": message, "context": context}
-        logger.info(f"🤖 Routing to OpenAI OSS 120B (Groq): {message[:60]}")
+        logger.info(f"🤖 Direct call to OpenAI OSS 120B (Groq — explicit override): {message[:60]}")
         result = aegis360_client.safe_post("api/chat", data)
         if result.get("success"):
             resp = result.get("results", [{}])[0].get("response", "")
@@ -12767,15 +12775,17 @@ session.fuzz()
     @mcp.tool()
     def chat_fast(message: str, context: str = "") -> Dict[str, Any]:
         """
-        Chat with Llama 3.1 8B Instant on Groq — ultra-fast for quick tasks.
-        Use for: rapid iteration, quick payload ideas, fast lookups during live pentests.
+        Direct call to Llama 3.1 8B Instant on Groq (explicit override only).
+        NOTE: Auto-routing does NOT use this model. All task categories
+        (recon, OSINT, code, lookups, planning) route exclusively to DeepSeek V4 Pro.
+        Use this tool only when you explicitly need Llama 3.1 8B by name.
 
         Args:
             message: Your quick question or task
             context: Optional session context
         """
         data = {"model": "fast", "message": message, "context": context}
-        logger.info(f"⚡ Routing to Llama 3.1 8B Instant (Groq): {message[:60]}")
+        logger.info(f"⚡ Direct call to Llama 3.1 8B Instant (Groq — explicit override): {message[:60]}")
         result = aegis360_client.safe_post("api/chat", data)
         if result.get("success"):
             resp = result.get("results", [{}])[0].get("response", "")
@@ -12785,17 +12795,15 @@ session.fuzz()
     @mcp.tool()
     def chat_all_models(message: str, context: str = "") -> Dict[str, Any]:
         """
-        Broadcast to all FREE Groq models simultaneously for comparison.
-        Queries in parallel: Llama 3.3 + Llama 4 + Qwen3 + GPT-OSS 120B + Llama 3.1 8B.
+        Send a message to DeepSeek V4 Pro via OpenRouter.
+        All task categories (recon, OSINT, code, lookups, planning) route exclusively
+        to DeepSeek V4 Pro — no other models are included in broadcast.
 
         Claude is NOT included — it is reserved for exploitation tasks only (costs API credits).
         Use run_exploit_agent or smart_chat for tasks that require Claude.
 
-        Great for: getting multiple free opinions on a vulnerability, comparing recon approaches,
-        reviewing scan output, or picking the best non-exploitation strategy.
-
         Args:
-            message: Question or task to send to all free models
+            message: Question or task
             context: Optional session context (target, scope, findings so far)
         """
         data = {"model": "all", "message": message, "context": context}
@@ -12814,22 +12822,27 @@ session.fuzz()
     @mcp.tool()
     def chat_model(model: str, message: str, context: str = "") -> Dict[str, Any]:
         """
-        Chat with a specific model by key.
+        Chat with a specific model by key (explicit override).
 
         ROUTING POLICY:
-          model=claude   → EXPLOITATION TASKS ONLY (costs Anthropic API credits).
-                           Use only for: writing exploits, shellcode, RCE, privesc, bypass, lateral movement.
-                           For everything else use a free Groq model.
-          model=all      → Broadcasts to FREE Groq models only (Claude excluded).
+          Auto-routing uses DeepSeek V4 Pro (OpenRouter) for ALL task categories:
+            Recon / Enumeration, OSINT / Deep Analysis, Code / PoC Scripts,
+            Quick Lookups, Planning / Strategy — no fallbacks to other providers.
 
-        Available keys:
-          claude    — Claude Sonnet 4.6 (Anthropic API) — EXPLOITATION ONLY
-          llama3.3  — Llama 3.3 70B Versatile (Groq, FREE) — planning, recon, general
-          llama4    — Llama 4 Scout 17B (Groq, FREE) — deep analysis, enumeration
-          qwen3     — Qwen3 32B (Groq, FREE) — code, PoC, log parsing, crawl output
-          gpt-oss   — OpenAI OSS 120B (Groq, FREE) — OSINT, thorough analysis
-          fast      — Llama 3.1 8B Instant (Groq, FREE) — quick lookups
-          all       — All FREE Groq models in parallel
+          model=claude         → EXPLOITATION TASKS ONLY (costs Anthropic API credits).
+                                 Use only post validation-gate: exploits, shellcode, RCE, privesc, bypass.
+          model=deepseek-v4-pro → DeepSeek V4 Pro via OpenRouter (default for all non-exploitation tasks).
+          model=all            → Routes to DeepSeek V4 Pro (Claude excluded).
+
+        Direct-selection keys (bypass auto-routing — explicit overrides only):
+          deepseek-v4-pro — DeepSeek V4 Pro (OpenRouter) — DEFAULT for all task categories
+          claude          — Claude Sonnet 4.6 (Anthropic API) — EXPLOITATION ONLY
+          llama3.3        — Llama 3.3 70B Versatile (Groq) — direct selection only
+          llama4          — Llama 4 Scout 17B (Groq) — direct selection only
+          qwen3           — Qwen3 32B (Groq) — direct selection only
+          gpt-oss         — OpenAI OSS 120B (Groq) — direct selection only
+          fast            — Llama 3.1 8B Instant (Groq) — direct selection only
+          all             — DeepSeek V4 Pro (Claude excluded)
 
         Args:
             model: Model key from the list above
@@ -12878,19 +12891,17 @@ session.fuzz()
     @mcp.tool()
     def qwen_status() -> Dict[str, Any]:
         """
-        Check AI fallback chain status.
-        Shows all engines in priority order: Qwen3 → DeepSeek-R1 → DeepSeek-V3 → Groq.
-        If Groq is not listed, add GROQ_API_KEY to .env (free at console.groq.com).
+        Check AI engine status.
+        Shows active engine: DeepSeek V4 Pro (OpenRouter) — sole engine for all task categories.
+        Requires OPENROUTER_API_KEY in .env.
         """
-        logger.info("🔍 Checking AI fallback chain status")
+        logger.info("🔍 Checking AI engine status")
         result = aegis360_client.safe_get("api/qwen/status")
-        if result.get("fallback_chain"):
-            chain = result["fallback_chain"]
-            logger.info("🔗 Fallback chain (%d engines): %s",
-                        len(chain),
-                        " → ".join(e["name"] for e in chain))
-            if result.get("groq_hint"):
-                logger.info("💡 %s", result["groq_hint"])
+        engines = result.get("active_engines") or result.get("fallback_chain", [])
+        if engines:
+            logger.info("🔗 Active engines (%d): %s",
+                        len(engines),
+                        " → ".join(e["name"] for e in engines))
         return result
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -12918,9 +12929,8 @@ session.fuzz()
         Args:
             task:     What the agent should accomplish, e.g.
                       "Enumerate all subdomains of example.com and find open ports"
-            model:    "auto" (default) | "claude" | "llama3.3" | "llama4" |
-                      "qwen3" | "gptoss" | "fast"
-                      auto → uses Claude for exploitation tasks, llama3.3 for everything else
+            model:    "auto" (default) | "claude" | "deepseek-v4-pro"
+                      auto → uses Claude for exploitation tasks, DeepSeek V4 Pro (OpenRouter) for everything else
             context:  Background info to feed the agent at session start
             max_iter: Max number of tool-call iterations (1-20, default 10)
 
@@ -13040,6 +13050,62 @@ session.fuzz()
             "context":  context,
             "max_iter": max_iter,
         })
+
+    # ============================================================================
+    # ELECTRON SECURITY — ELECTRONEGATIVITY
+    # ============================================================================
+
+    @mcp.tool()
+    def electronegativity_scan(
+        input: str,
+        output_file: str = "",
+        checks: str = "",
+        exclude_checks: str = "",
+        severity: str = "",
+        confidence: str = "",
+        electron_version: str = "",
+        upgrade: str = "",
+        additional_args: str = "",
+    ) -> Dict[str, Any]:
+        """
+        Run Electronegativity static analysis on an Electron application.
+
+        Detects security misconfigurations such as nodeIntegration enabled,
+        contextIsolation disabled, webSecurity disabled, allowRunningInsecureContent,
+        and other Electron-specific vulnerabilities (see doyensec/electronegativity).
+
+        Args:
+            input: Path to Electron app directory, ASAR archive, or JS/HTML source file
+            output_file: Save findings to this file — extension determines format (.csv or .sarif)
+            checks: CSV list of specific check names to run (e.g. 'NODE_INTEGRATION_JS_CHECK')
+            exclude_checks: CSV list of check names to skip
+            severity: Minimum severity — 'INFORMATIONAL', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'
+            confidence: Minimum confidence — 'CERTAIN', 'FIRM', 'TENTATIVE'
+            electron_version: Override detected Electron version (e.g. '7.0.0')
+            upgrade: Upgrade path to check for breaking security changes (e.g. '7..8')
+            additional_args: Extra CLI flags passed verbatim to electronegativity
+
+        Returns:
+            Scan results with findings, severity breakdown, and raw output
+        """
+        data = {
+            "input": input,
+            "output_file": output_file,
+            "checks": checks,
+            "exclude_checks": exclude_checks,
+            "severity": severity,
+            "confidence": confidence,
+            "electron_version": electron_version,
+            "upgrade": upgrade,
+            "additional_args": additional_args,
+        }
+        logger.info(f"{Aegis360Colors.FIRE_RED}⚡ Electronegativity scan: {input}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/tools/electronegativity", data)
+        if result.get("success"):
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ Electronegativity scan completed for {input}{Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ Electronegativity scan failed for {input}{Aegis360Colors.RESET}")
+        return result
 
     return mcp
 

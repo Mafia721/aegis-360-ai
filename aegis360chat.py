@@ -108,7 +108,9 @@ MODELS = {
         "color":    R,
         "best_for": "Exploitation planning & report generation (paid — post gate only)",
     },
-    # ── Fallback free models ─────────────────────────────────────────────────
+    # ── Groq models — direct selection only (NOT used by auto-routing) ──────────
+    # Auto-routing for all task categories uses DeepSeek V4 Pro exclusively.
+    # These entries remain available for explicit --model <key> overrides only.
     "llama33": {
         "name":     "Llama 3.3 70B Versatile",
         "provider": "Groq",
@@ -116,7 +118,7 @@ MODELS = {
         "key":      GROQ_KEY,
         "base_url": GROQ_URL,
         "color":    G,
-        "best_for": "General reasoning fallback (free)",
+        "best_for": "Direct selection only — auto-routing uses DeepSeek V4 Pro",
     },
     "llama4": {
         "name":     "Llama 4 Scout 17B",
@@ -125,7 +127,7 @@ MODELS = {
         "key":      GROQ_KEY,
         "base_url": GROQ_URL,
         "color":    C,
-        "best_for": "Deep analysis fallback (free)",
+        "best_for": "Direct selection only — auto-routing uses DeepSeek V4 Pro",
     },
     "qwen3": {
         "name":     "Qwen3 32B",
@@ -134,7 +136,7 @@ MODELS = {
         "key":      GROQ_KEY,
         "base_url": GROQ_URL,
         "color":    Y,
-        "best_for": "Code & PoC scripts fallback (free)",
+        "best_for": "Direct selection only — auto-routing uses DeepSeek V4 Pro",
     },
     "gptoss": {
         "name":     "OpenAI OSS 120B",
@@ -143,7 +145,7 @@ MODELS = {
         "key":      GROQ_KEY,
         "base_url": GROQ_URL,
         "color":    M,
-        "best_for": "Largest free model fallback",
+        "best_for": "Direct selection only — auto-routing uses DeepSeek V4 Pro",
     },
     "fast": {
         "name":     "Llama 3.1 8B Instant",
@@ -152,7 +154,7 @@ MODELS = {
         "key":      GROQ_KEY,
         "base_url": GROQ_URL,
         "color":    W,
-        "best_for": "Ultra-fast fallback",
+        "best_for": "Direct selection only — auto-routing uses DeepSeek V4 Pro",
     },
 }
 

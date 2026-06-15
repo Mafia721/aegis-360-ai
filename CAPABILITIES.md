@@ -332,18 +332,18 @@ The entire Praetorian open-source security toolset is integrated as a Flask blue
 
 ## 13. AI Model Routing (Multi-Model Intelligence)
 
-Aegis360 automatically routes tasks to the optimal AI model to minimize cost while maximizing capability:
+Aegis360 routes all task categories exclusively to DeepSeek V4 Pro via OpenRouter, with Claude reserved for post-gate exploitation and reporting only.
 
 ### Routing Table
 
-| Task Type | Model | API | Cost |
-|-----------|-------|-----|------|
-| Exploitation, payload generation, RCE, bypass | **Claude Sonnet 4.6** | Anthropic | Paid |
-| Reconnaissance, planning, OSINT, methodology | **Llama 3.3 70B** | Groq | Free |
-| Code generation, exploit scripting, analysis | **Qwen3-Coder 32B** | OpenRouter | Free tier |
-| Fast answers, summaries, classification | **Llama 3.1 8B** | Groq | Free |
-| Multi-turn complex reasoning | **Llama 4** | Groq | Free |
-| Security-specific analysis | **Qwen3 32B** | Groq | Free |
+| Task Type | Model | Provider | Notes |
+|-----------|-------|----------|-------|
+| Recon / Enumeration | **DeepSeek V4 Pro** | OpenRouter | Exclusive — no fallbacks |
+| OSINT / Deep Analysis | **DeepSeek V4 Pro** | OpenRouter | Exclusive — no fallbacks |
+| Code / PoC Scripts | **DeepSeek V4 Pro** | OpenRouter | Exclusive — no fallbacks |
+| Quick Lookups | **DeepSeek V4 Pro** | OpenRouter | Exclusive — no fallbacks |
+| Planning / Strategy | **DeepSeek V4 Pro** | OpenRouter | Exclusive — no fallbacks |
+| Exploitation, payload generation, RCE, bypass | **Claude Sonnet 4.6** | Anthropic | Post validation-gate only |
 
 ### AI-Powered Tools
 

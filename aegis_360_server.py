@@ -14853,30 +14853,14 @@ except ImportError:
 
 class _AIFallbackChain:
     """
-    Ordered chain of OpenAI-compatible AI engines.
-    _chat() tries each engine in sequence and returns the first success.
-    On rate-limit / error, logs a warning and moves to the next engine.
-
-    Fallback order (configured via .env):
-      1. Qwen3-Coder          (OpenRouter — best for code tasks)
-      2. DeepSeek-R1          (OpenRouter — best reasoning)
-      3. DeepSeek-V3          (OpenRouter — strong general coder)
-      4. Groq Llama 3.3-70B  (Groq       — fastest, always available)
+    AI engine chain using DeepSeek V4 Pro via OpenRouter as the sole provider.
+    All task categories (recon, OSINT, code, lookups, planning) route exclusively
+    to DeepSeek V4 Pro — no Groq or other provider fallbacks are used.
     """
 
-    # Groq models — verified live (checked 2026-05-07)
-    _GROQ_MODELS = [
-        ("groq-llama3.3-70b",  "llama-3.3-70b-versatile"),
-        ("groq-llama4-scout",  "meta-llama/llama-4-scout-17b-16e-instruct"),
-        ("groq-qwen3-32b",     "qwen/qwen3-32b"),
-        ("groq-gpt-oss-120b",  "openai/gpt-oss-120b"),
-        ("groq-llama3.1-8b",   "llama-3.1-8b-instant"),
-    ]
-
-    # OpenRouter models kept as secondary — may be unavailable on free tier
+    # DeepSeek V4 Pro via OpenRouter — sole engine for all task categories
     _OR_MODELS = [
-        ("or-qwen3-coder",  "qwen/qwen3-coder:free"),
-        ("or-deepseek-r1",  "deepseek/deepseek-r1:free"),
+        ("deepseek-v4-pro", "deepseek/deepseek-v4-pro"),
     ]
 
     def __init__(self):
@@ -14885,30 +14869,22 @@ class _AIFallbackChain:
 
     def _build(self):
         if not _OPENAI_SDK_AVAILABLE:
-            logger.warning("⚠️  openai SDK missing — fallback chain disabled")
+            logger.warning("⚠️  openai SDK missing — AI engine disabled")
             return
 
-        # Groq engines — primary free provider (most reliable)
-        groq_key = os.environ.get("GROQ_API_KEY", "")
-        groq_url = os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
-        if groq_key:
-            groq_client = _OpenAI(api_key=groq_key, base_url=groq_url)
-            for name, model in self._GROQ_MODELS:
-                self._engines.append((name, groq_client, model))
-            logger.info("✅ FallbackChain: %d Groq models loaded", len(self._GROQ_MODELS))
-        else:
-            logger.info("ℹ️  GROQ_API_KEY not set (get free key at console.groq.com)")
-
-        # OpenRouter engines — secondary (free tier intermittently unavailable)
+        # DeepSeek V4 Pro via OpenRouter — primary and only engine
         or_key = (os.environ.get("OPENROUTER_API_KEY") or
+                  os.environ.get("DEEPSEEK_V4_PRO_KEY") or
                   os.environ.get("QWEN_API_KEY", ""))
         or_url = (os.environ.get("OPENROUTER_BASE_URL") or
                   os.environ.get("QWEN_BASE_URL", "https://openrouter.ai/api/v1"))
+        ds_model = os.environ.get("DEEPSEEK_V4_PRO_MODEL", "deepseek/deepseek-v4-pro")
         if or_key:
             or_client = _OpenAI(api_key=or_key, base_url=or_url)
-            for name, model in self._OR_MODELS:
-                self._engines.append((name, or_client, model))
-            logger.info("✅ FallbackChain: %d OpenRouter models added", len(self._OR_MODELS))
+            self._engines.append(("deepseek-v4-pro", or_client, ds_model))
+            logger.info("✅ FallbackChain: DeepSeek V4 Pro (OpenRouter) loaded (model=%s)", ds_model)
+        else:
+            logger.warning("⚠️  OPENROUTER_API_KEY not set — AI engine unavailable")
 
     @property
     def enabled(self) -> bool:
@@ -17955,6 +17931,55 @@ def pius():
         logger.error(f"💥 Error in PIUS endpoint: {str(e)}")
         return jsonify({"error": f"Server error: {str(e)}"}), 500
 
+@app.route("/api/tools/electronegativity", methods=["POST"])
+def electronegativity():
+    """Run Electronegativity static analysis on an Electron app or ASAR"""
+    try:
+        params = request.json
+        input_path = params.get("input", "")
+        output_file = params.get("output_file", "")
+        checks = params.get("checks", "")
+        exclude_checks = params.get("exclude_checks", "")
+        severity = params.get("severity", "")
+        confidence = params.get("confidence", "")
+        electron_version = params.get("electron_version", "")
+        upgrade = params.get("upgrade", "")
+        additional_args = params.get("additional_args", "")
+
+        if not input_path:
+            logger.warning("⚡ Electronegativity called without input parameter")
+            return jsonify({"error": "input parameter is required (path to Electron app, ASAR, or source directory)"}), 400
+
+        # Use full path since ~/.local/bin may not be in server PATH
+        electronegativity_bin = shlex.quote(str(Path.home() / ".local" / "bin" / "electronegativity"))
+        command = f"{electronegativity_bin} -i {shlex.quote(input_path)}"
+
+        if output_file:
+            command += f" -o {shlex.quote(output_file)}"
+        if checks:
+            command += f" -l {shlex.quote(checks)}"
+        if exclude_checks:
+            command += f" -x {shlex.quote(exclude_checks)}"
+        if severity:
+            command += f" -s {shlex.quote(severity)}"
+        if confidence:
+            command += f" -c {shlex.quote(confidence)}"
+        if electron_version:
+            command += f" -e {shlex.quote(electron_version)}"
+        if upgrade:
+            command += f" -u {shlex.quote(upgrade)}"
+        if additional_args:
+            command += f" {additional_args}"
+
+        logger.info(f"⚡ Starting Electronegativity scan: {input_path}")
+        result = execute_command(command)
+        logger.info(f"📊 Electronegativity scan completed for {input_path}")
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"💥 Error in electronegativity endpoint: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
 # ============================================================================
 # QWEN3 CODER API ENDPOINTS
 # ============================================================================
@@ -18381,24 +18406,18 @@ def qwen_add_groq_key():
 
 @app.route("/api/qwen/status", methods=["GET"])
 def qwen_status():
-    """Check AI fallback chain status — shows all engines and their priority order"""
+    """Check AI engine status — shows active DeepSeek V4 Pro engine"""
     engines = _fallback_chain.active_engines
     for i, e in enumerate(engines):
         e["priority"] = i + 1
-        e["role"] = (
-            "primary"  if i == 0 else
-            "fallback1" if i == 1 else
-            "fallback2" if i == 2 else
-            f"fallback{i}"
-        )
+        e["role"] = "primary"
+    deepseek_active = any(e["name"] == "deepseek-v4-pro" for e in engines)
     return jsonify({
         "enabled": qwen_ai.enabled,
         "engine_count": len(engines),
-        "fallback_chain": engines,
-        "groq_active": any(e["name"].startswith("groq") for e in engines),
-        "groq_hint": ("" if any(e["name"].startswith("groq") for e in engines)
-                      else "Add GROQ_API_KEY to .env to enable Groq Llama 3.3 70B fallback "
-                           "(free at console.groq.com)"),
+        "active_engines": engines,
+        "deepseek_v4_pro_active": deepseek_active,
+        "routing_policy": "All task categories (recon, OSINT, code, lookups, planning) use DeepSeek V4 Pro via OpenRouter exclusively — no fallbacks.",
         "endpoints": [
             "/api/qwen/write-exploit",
             "/api/qwen/write-tool",
@@ -18432,15 +18451,20 @@ def _get_model_client(model_key: str):
     """
     Returns (client, model_id, provider_name) for a given model key.
 
-    Verified working models (2026-05-07):
-      Groq (primary free provider):
-        llama3.3  — llama-3.3-70b-versatile         (best general reasoning)
-        llama4    — llama-4-scout-17b               (Meta latest)
-        qwen3     — qwen/qwen3-32b                  (Qwen3 32B, fast on Groq)
-        gpt-oss   — openai/gpt-oss-120b             (OpenAI OSS 120B)
-        fast      — llama-3.1-8b-instant            (fastest, lightweight)
-      Anthropic:
-        claude    — claude-sonnet-4-6               (best overall, costs API credits)
+    Routing policy — task categories use ONLY DeepSeek V4 Pro via OpenRouter:
+      deepseek-v4-pro / deepseek  — deepseek/deepseek-v4-pro (OpenRouter)
+        Used for: Recon/Enumeration, OSINT/Deep Analysis, Code/PoC Scripts,
+                  Quick Lookups, Planning/Strategy — no fallbacks.
+
+    Exploitation / reporting (post-gate only):
+      claude    — claude-sonnet-4-6  (Anthropic API — paid)
+
+    Direct-selection keys (not used by auto-routing — for explicit overrides only):
+      llama3.3  — llama-3.3-70b-versatile  (Groq)
+      llama4    — llama-4-scout-17b        (Groq)
+      qwen3     — qwen/qwen3-32b           (Groq)
+      gpt-oss   — openai/gpt-oss-120b      (Groq)
+      fast      — llama-3.1-8b-instant     (Groq)
     """
     gr_key = os.environ.get("GROQ_API_KEY", "")
     gr_url = os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
@@ -18511,12 +18535,14 @@ def _call_model(model_key: str, message: str, system: str,
 @app.route("/api/chat", methods=["POST"])
 def multi_model_chat():
     """
-    Send a message to any configured AI model (or all at once).
-    model: qwen3 | deepseek-r1 | deepseek-v3 | llama4-scout | groq | claude | all
+    Send a message to a configured AI model.
+    model: deepseek-v4-pro (default) | claude | all
+    All task-category routing uses deepseek-v4-pro exclusively.
+    Claude is reserved for exploitation/reporting only (post validation gate).
     """
     try:
         p          = request.json or {}
-        model_key  = p.get("model", "deepseek-r1").lower().strip()
+        model_key  = p.get("model", "deepseek-v4-pro").lower().strip()
         message    = p.get("message", "")
         system     = p.get("system", "")
         context    = p.get("context", "")
@@ -18552,12 +18578,12 @@ def multi_model_chat():
                 "timestamp": datetime.now().isoformat(),
             })
 
-        # ── All free models in parallel (Claude excluded — use model=claude for exploitation only)
+        # ── Broadcast: DeepSeek V4 Pro only (Claude excluded — use model=claude for exploitation only)
         if model_key == "all":
-            all_keys = ["llama3.3", "llama4", "qwen3", "gpt-oss", "fast"]
+            all_keys = ["deepseek-v4-pro"]
             results = []
 
-            with ThreadPoolExecutor(max_workers=5) as ex:
+            with ThreadPoolExecutor(max_workers=1) as ex:
                 futures = {
                     ex.submit(_call_model, k, message, system, context, max_tokens): k
                     for k in all_keys
@@ -18566,13 +18592,13 @@ def multi_model_chat():
                     results.append(fut.result())
 
             successful = [r for r in results if r.get("success")]
-            logger.info(f"✅ All-free-model chat: {len(successful)}/{len(results)} responded")
+            logger.info(f"✅ Broadcast chat: {len(successful)}/{len(results)} responded")
             return jsonify({
                 "success": True,
                 "results": results,
                 "responded": len(successful),
                 "total": len(results),
-                "note": "Claude excluded from broadcast — use model=claude for exploitation tasks only",
+                "note": "Broadcast routes to DeepSeek V4 Pro (OpenRouter). Use model=claude for exploitation tasks only.",
                 "timestamp": datetime.now().isoformat(),
             })
 
@@ -18697,8 +18723,7 @@ def smart_chat():
         if is_exploit:
             routed_to    = "claude"
             route_reason = "Exploitation task → Claude Sonnet 4.6"
-        elif forced and forced in ("deepseek-v4-pro", "deepseek",
-                                   "llama3.3", "llama4", "qwen3", "gptoss", "fast", "groq"):
+        elif forced and forced in ("deepseek-v4-pro", "deepseek"):
             routed_to    = forced
             route_reason = f"Manually specified → {forced}"
         else:
@@ -18729,8 +18754,7 @@ def smart_chat():
 
         provider = result.get("provider", "")
         cost_note = ("Claude API (paid)" if routed_to == "claude"
-                     else "OpenRouter (DeepSeek V4 Pro)" if routed_to == "deepseek-v4-pro"
-                     else "Groq (free)")
+                     else "OpenRouter (DeepSeek V4 Pro)")
         return jsonify({
             "success":      result.get("success", False),
             "routed_to":    routed_to,
@@ -19533,8 +19557,8 @@ def agent_run():
     Autonomous ReAct agent — model picks and executes tools to complete the task.
 
     POST body:
-      model   : "deepseek-v4-pro" | "claude" | "llama3.3" | "llama4" | "qwen3" | "gptoss" | "fast"
-                (default: deepseek-v4-pro for all tasks; claude auto-selected for exploitation)
+      model   : "deepseek-v4-pro" | "claude"
+                (default: deepseek-v4-pro for all task categories; claude auto-selected for exploitation only)
       task    : What to accomplish (required)
       context : Optional background information
       max_iter: Max tool-call iterations (default 10, max 20)
