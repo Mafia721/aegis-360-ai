@@ -126,10 +126,12 @@ app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
 # Register modular blueprints
-from modules.augustus import augustus_bp      # noqa: E402
-from modules.praetorian import praetorian_bp  # noqa: E402
+from modules.augustus import augustus_bp              # noqa: E402
+from modules.praetorian import praetorian_bp          # noqa: E402
+from modules.surfacezero_bp import surfacezero_bp     # noqa: E402
 app.register_blueprint(augustus_bp)
 app.register_blueprint(praetorian_bp)
+app.register_blueprint(surfacezero_bp)
 
 # Multi-model orchestration engine (Claude Code → DeepSeek V4 Pro → Claude API)
 from aegis_360_orchestrator import orchestrator_bp  # noqa: E402

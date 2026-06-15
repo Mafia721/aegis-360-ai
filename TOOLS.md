@@ -1,6 +1,6 @@
 # Aegis-360 AI v1.1.0 — Tool Installation Reference
 
-**Coverage:** 123/127 tools (96.9%) | **Last verified:** 2026-05-16  
+**Coverage:** 125/129 tools (96.9%) | **Last verified:** 2026-06-15  
 **Success rate:** 98.4% | **Server:** `http://127.0.0.1:8888`
 
 Run `install_sudo_tools.sh` to reproduce the full setup on a fresh Kali system.
@@ -83,6 +83,37 @@ python3 aegis_360_server.py --port 8888
 | waybackurls | `go install` → `~/gopath/bin/` | `waybackurls` |
 | wfuzz | pre-installed | `wfuzz` |
 | dotdotpwn | cloned → `tools/dotdotpwn/` | `dotdotpwn` (wrapper runs perl from tool dir) |
+
+---
+
+### Electron / Desktop Security (1/1)
+| Tool | Install Method | Command |
+|------|---------------|---------|
+| electronegativity | `npm install -g @doyensec/electronegativity --prefix ~/.local` | `electronegativity -i <app/asar>` |
+
+---
+
+### Pre-Auth Attack Surface (1/1)
+| Tool | Install Method | Command |
+|------|---------------|---------|
+| surfacezero | `pip install -e tools/surfacezero/` in aegis-360-env | `surfacezero scan -t <url>` |
+
+**SurfaceZero v2.1** — Pre-authentication attack surface enumeration + AI analyst.
+
+| Module | What it finds |
+|--------|--------------|
+| `js` | JS files, endpoints, frameworks, source maps, cloud URLs |
+| `secrets` | 45 patterns: AWS/GCP/Azure keys, JWTs, DB URIs, tokens |
+| `graphql` | Introspection, mutations, batch queries, field suggestions |
+| `cors,headers` | Origin reflection, missing headers, CSP weaknesses |
+| `cookies,tokens` | HttpOnly/Secure/SameSite, JWT leaks, weak algorithms |
+| `pii` | Email, SSN, credit card, Aadhaar, PAN, phone, address |
+| `paths` | 123 paths: .env, swagger, actuator, admin, git, backups |
+| `api_harvest` | 114 probes, live JSON retrieval, auth bypass testing |
+
+**MCP Tools exposed:** `surfacezero_scan`, `surfacezero_secrets_scan`, `surfacezero_api_harvest`, `surfacezero_graphql_scan`, `surfacezero_analyze`, `surfacezero_report`, `surfacezero_status`
+
+**Server endpoints:** `/api/surfacezero/scan`, `/api/surfacezero/scan/secrets`, `/api/surfacezero/scan/api-harvest`, `/api/surfacezero/scan/graphql`, `/api/surfacezero/analyze`, `/api/surfacezero/report`, `/api/surfacezero/status`
 
 ---
 

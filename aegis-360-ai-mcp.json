@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "aegis-360-ai": {
+      "type": "stdio",
+      "command": "/home/kali/aegis-360-ai-master/aegis-360-env/bin/python3",
+      "args": [
+        "/home/kali/aegis-360-ai-master/aegis_360_mcp.py",
+        "--server",
+        "http://127.0.0.1:8888"
+      ],
+      "description": "Aegis-360 AI v6.0 - Advanced Cybersecurity Automation Platform. Turn off alwaysAllow if you don't want autonomous execution!",
+      "timeout": 300,
+      "alwaysAllow": []
+    }
+  }
+}

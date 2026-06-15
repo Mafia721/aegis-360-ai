@@ -13107,6 +13107,218 @@ session.fuzz()
             logger.error(f"{Aegis360Colors.ERROR}❌ Electronegativity scan failed for {input}{Aegis360Colors.RESET}")
         return result
 
+    # =========================================================================
+    # SURFACEZERO — Pre-Authentication Attack Surface Enumeration
+    # SurfaceZero v2.1 by BinaryGalaxys Security
+    # =========================================================================
+
+    @mcp.tool()
+    def surfacezero_scan(
+        target: str,
+        modules: str = "all",
+        threads: int = 10,
+        timeout: int = 15,
+        proxy: str = "",
+        skip_ssl: bool = False,
+        cookie: str = "",
+        aggressive: bool = False,
+        engagement_id: str = "",
+        ai_analyze: bool = False,
+        ai_model: str = "claude",
+        ai_features: str = "threat-model,kill-chain,mitre",
+        verbose: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Run a full SurfaceZero pre-authentication attack surface scan.
+
+        Discovers: JS endpoints, secrets (45 patterns), GraphQL introspection,
+        CORS misconfigs, missing security headers, PII leaks, 123 sensitive paths,
+        and unauthenticated API data via 114 probes.
+
+        Args:
+            target:        Target URL (e.g. https://app.example.com)
+            modules:       all | secrets,js,graphql,cors,headers,paths,pii,api_harvest,tokens
+            threads:       Concurrent threads [10]
+            timeout:       Request timeout seconds [15]
+            proxy:         Proxy URL e.g. http://127.0.0.1:8080 (for Burp)
+            skip_ssl:      Disable SSL verification
+            cookie:        Cookie header value
+            aggressive:    Enable auth bypass headers + HTTP method testing
+            engagement_id: Tag for report (e.g. PT36020)
+            ai_analyze:    Chain AI threat analysis after scan
+            ai_model:      AI model: claude | deepseek | gpt4 | gemini | ollama:llama3
+            ai_features:   threat-model,kill-chain,mitre,exploits,remediation
+            verbose:       Verbose output
+        """
+        data = {
+            "target": target, "modules": modules, "threads": threads,
+            "timeout": timeout, "proxy": proxy, "skip_ssl": skip_ssl,
+            "cookie": cookie, "aggressive": aggressive, "engagement_id": engagement_id,
+            "ai_analyze": ai_analyze, "ai_model": ai_model, "ai_features": ai_features,
+            "verbose": verbose,
+        }
+        logger.info(f"{Aegis360Colors.NEON_BLUE}🔍 [SurfaceZero] Full scan: {target} | modules={modules}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/surfacezero/scan", data)
+        if result.get("success"):
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ [SurfaceZero] Scan completed: {target}{Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ [SurfaceZero] Scan failed: {result.get('error', result.get('stderr', ''))[:150]}{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def surfacezero_secrets_scan(
+        target: str,
+        proxy: str = "",
+        skip_ssl: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        SurfaceZero secrets-only scan — 45 patterns: AWS/GCP/Azure keys, JWTs,
+        DB connection strings, API tokens, private keys. Also extracts JS endpoints.
+
+        Args:
+            target:   Target URL
+            proxy:    Proxy URL (e.g. http://127.0.0.1:8080 for Burp)
+            skip_ssl: Disable SSL verification
+        """
+        data = {"target": target, "proxy": proxy, "skip_ssl": skip_ssl}
+        logger.info(f"{Aegis360Colors.HACKER_RED}🔑 [SurfaceZero] Secrets scan: {target}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/surfacezero/scan/secrets", data)
+        if result.get("success"):
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ [SurfaceZero] Secrets scan done: {target}{Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ [SurfaceZero] Secrets scan failed{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def surfacezero_api_harvest(
+        target: str,
+        aggressive: bool = True,
+        proxy: str = "",
+        skip_ssl: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        SurfaceZero API data harvester — actively retrieves live data from
+        unauthenticated endpoints. 114 probes across users, config, settings,
+        admin, search, export, actuator, JWKS, OAuth, tenant/org APIs.
+
+        Aggressive mode tests auth bypass headers:
+          X-Forwarded-For, X-Real-IP, Authorization: Bearer null/undefined, X-Api-Key: null
+
+        Args:
+            target:     Target URL
+            aggressive: Enable auth bypass header testing [true]
+            proxy:      Proxy URL
+            skip_ssl:   Disable SSL verification
+        """
+        data = {"target": target, "aggressive": aggressive, "proxy": proxy, "skip_ssl": skip_ssl}
+        logger.info(f"{Aegis360Colors.CYBER_ORANGE}🌐 [SurfaceZero] API harvest: {target} (aggressive={aggressive}){Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/surfacezero/scan/api-harvest", data)
+        if result.get("success"):
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ [SurfaceZero] API harvest done: {target}{Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ [SurfaceZero] API harvest failed{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def surfacezero_graphql_scan(
+        target: str,
+        proxy: str = "",
+        skip_ssl: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        SurfaceZero GraphQL scanner — tests introspection, mutations, batch
+        query attacks, and field suggestions on GraphQL endpoints.
+
+        Args:
+            target:   Target URL
+            proxy:    Proxy URL
+            skip_ssl: Disable SSL verification
+        """
+        data = {"target": target, "proxy": proxy, "skip_ssl": skip_ssl}
+        logger.info(f"{Aegis360Colors.ELECTRIC_PURPLE}🔷 [SurfaceZero] GraphQL scan: {target}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/surfacezero/scan/graphql", data)
+        if result.get("success"):
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ [SurfaceZero] GraphQL scan done: {target}{Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ [SurfaceZero] GraphQL scan failed{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def surfacezero_analyze(
+        input_path: str,
+        model: str = "claude",
+        features: str = "threat-model,kill-chain,mitre,exploits,remediation",
+        output_path: str = "",
+        ollama_host: str = "",
+    ) -> Dict[str, Any]:
+        """
+        AI threat analysis on an existing SurfaceZero scan JSON.
+
+        AI Features:
+          threat-model  — STRIDE analysis across all 6 categories + top risks
+          kill-chain    — Unified Kill Chain phases with MITRE IDs + choke points
+          mitre         — ATT&CK mapping with tactic heatmap + detection notes
+          exploits      — Per-finding PoC approach, CVSS estimate, chaining
+          remediation   — Prioritized roadmap: immediate/short/long-term
+
+        AI Models:
+          claude / claude-haiku / claude-opus  — Anthropic (ANTHROPIC_API_KEY)
+          deepseek / deepseek-chat             — DeepSeek  (DEEPSEEK_API_KEY)
+          gpt4 / gpt-4o-mini                  — OpenAI    (OPENAI_API_KEY)
+          gemini / gemini-pro                  — Google    (GEMINI_API_KEY)
+          ollama:llama3 / ollama:deepseek-r1:7b — Local Ollama (no key needed)
+
+        Args:
+            input_path:  Path to scan JSON file
+            model:       AI model alias [claude]
+            features:    Comma-separated AI features to run
+            output_path: HTML report output path (auto-generated if empty)
+            ollama_host: Ollama URL [http://localhost:11434]
+        """
+        data = {
+            "input": input_path, "model": model, "features": features,
+            "output": output_path, "ollama_host": ollama_host,
+        }
+        logger.info(f"{Aegis360Colors.MATRIX_GREEN}🤖 [SurfaceZero] AI analysis: model={model} features={features}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/surfacezero/analyze", data)
+        if result.get("success"):
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ [SurfaceZero] AI analysis complete (model={model}){Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ [SurfaceZero] AI analysis failed{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def surfacezero_report(
+        input_path: str,
+        fmt: str = "html",
+        output_path: str = "",
+    ) -> Dict[str, Any]:
+        """
+        Generate an HTML, Markdown, or JSON report from a SurfaceZero scan JSON.
+
+        Args:
+            input_path:  Path to scan JSON file
+            fmt:         Output format: html | md | json [html]
+            output_path: Output file path (auto-generated if empty)
+        """
+        data = {"input": input_path, "format": fmt, "output": output_path}
+        logger.info(f"{Aegis360Colors.NEON_BLUE}📄 [SurfaceZero] Generating {fmt.upper()} report from {input_path}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/surfacezero/report", data)
+        if result.get("success"):
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ [SurfaceZero] {fmt.upper()} report generated{Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ [SurfaceZero] Report generation failed{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def surfacezero_status() -> Dict[str, Any]:
+        """
+        Check SurfaceZero installation status, version, available modules,
+        AI features, and all endpoint paths.
+        """
+        logger.info("🔍 [SurfaceZero] Checking installation status")
+        return aegis360_client.safe_get("api/surfacezero/status")
+
     return mcp
 
 def parse_args():

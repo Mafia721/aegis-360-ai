@@ -1,0 +1,16 @@
+# Core HTTP & Parsing
+click>=8.0
+httpx>=0.23.0
+requests>=2.28
+beautifulsoup4>=4.12
+lxml>=4.9
+pyyaml>=6.0
+
+# Terminal UI
+rich>=13.0
+
+# AI Model SDKs (install only what you need)
+anthropic>=0.50.0      # Claude (Anthropic)
+openai>=1.0.0          # GPT-4o (OpenAI)
+# google-generativeai  # Gemini (optional, uses direct HTTP)
+# ollama               # Ollama local models (optional, uses direct HTTP)

@@ -26,6 +26,9 @@ GEM_HOME="$HOME/.local/share/gem/ruby/3.3.0" gem install one_gadget zsteg prime
 echo "[*] Installing pwntools + hashpumpy into venv..."
 "$AEGIS_360_DIR/aegis-360-env/bin/pip" install pwntools hashpumpy -q
 
+echo "[*] Installing Electronegativity (Electron security scanner)..."
+npm install -g @doyensec/electronegativity --prefix "$HOME/.local" 2>&1 | grep -v "^npm warn" || true
+
 echo "[*] Downloading pwninit binary..."
 curl -sL -o "$LOCAL_BIN/pwninit" \
     "https://github.com/io12/pwninit/releases/download/3.3.1/pwninit"
