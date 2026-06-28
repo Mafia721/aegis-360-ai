@@ -43,7 +43,10 @@ ARJUN_DIR     = Path(__file__).parent / "tools" / "arjun"
 PARAMSPIDER_DIR = Path(__file__).parent / "tools" / "paramspider"
 GOPATH_BIN    = Path("$HOME/gopath/bin")
 RR_BIN        = Path(__file__).parent / "tools" / "rr-debugger" / "bin" / "rr"
-AFLPP_DIR     = Path(__file__).parent / "tools" / "aflplusplus"
+AFLPP_DIR       = Path(__file__).parent / "tools" / "aflplusplus"
+GRAPHW00F_BIN   = Path(__file__).parent / "tools" / "graphw00f" / "main.py"
+GRAPHQLMAP_BIN  = Path(__file__).parent / "aegis-360-env" / "bin" / "graphqlmap"
+CLAIRVOYANCE_BIN = Path(__file__).parent / "aegis-360-env" / "bin" / "clairvoyance"
 
 # Burp Suite Professional integration
 BURP_PROXY_HOST = "127.0.0.1"
@@ -3058,6 +3061,202 @@ def setup_mcp_server(aegis360_client: Aegis360Client) -> FastMCP:
             logger.error("❌ GraphQL scanning failed")
 
         return result
+
+    @mcp.tool()
+    def graphw00f_fingerprint(
+        target: str,
+        detect: bool = True,
+        fingerprint: bool = False,
+        no_redirect: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Fingerprint the GraphQL engine behind a target endpoint using graphw00f.
+
+        Identifies the server-side GraphQL implementation (Apollo, Hasura, AWS AppSync,
+        GraphQL-Go, Ariadne, Strawberry, etc.) to tailor subsequent attacks.
+
+        Args:
+            target:      Target URL including GraphQL path (e.g. https://example.com/graphql)
+            detect:      Run detection mode — identify engine [true]
+            fingerprint: Run fingerprint mode — deeper engine probing [false]
+            no_redirect: Do not follow 3xx redirects [false]
+        """
+        if not GRAPHW00F_BIN.exists():
+            return {"success": False, "error": f"graphw00f not found at {GRAPHW00F_BIN}"}
+
+        cmd = [str(RAPTOR_PYTHON), str(GRAPHW00F_BIN), "--target", target]
+        if detect:
+            cmd.append("--detect")
+        if fingerprint:
+            cmd.append("--fingerprint")
+        if no_redirect:
+            cmd.append("--noredirect")
+
+        logger.info(f"{Aegis360Colors.NEON_BLUE}🔷 [graphw00f] Fingerprinting GraphQL engine: {target}{Aegis360Colors.RESET}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            success = proc.returncode == 0
+            result = {
+                "success": success,
+                "tool": "graphw00f",
+                "target": target,
+                "stdout": proc.stdout,
+                "stderr": proc.stderr,
+                "returncode": proc.returncode,
+            }
+            if success:
+                logger.info(f"{Aegis360Colors.SUCCESS}✅ [graphw00f] Fingerprinting complete: {target}{Aegis360Colors.RESET}")
+            else:
+                logger.error(f"{Aegis360Colors.ERROR}❌ [graphw00f] Failed: {proc.stderr[:150]}{Aegis360Colors.RESET}")
+            return result
+        except subprocess.TimeoutExpired:
+            return {"success": False, "error": "graphw00f timed out after 60s", "target": target}
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "target": target}
+
+    @mcp.tool()
+    def clairvoyance_schema_recovery(
+        target: str,
+        wordlist: str = "",
+        output_file: str = "",
+        headers: str = "",
+        concurrent: int = 5,
+        document: str = "",
+        insecure: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Recover a GraphQL schema when introspection is disabled, using clairvoyance.
+
+        Performs wordlist-based field guessing to reconstruct the schema without
+        introspection access — essential for black-box GraphQL assessments.
+
+        Args:
+            target:       GraphQL endpoint URL (e.g. https://example.com/graphql)
+            wordlist:     Path to wordlist file (uses clairvoyance default if empty)
+            output_file:  Save recovered schema JSON to this path
+            headers:      Extra HTTP headers in 'Key: Value' format (repeatable, comma-separated)
+            concurrent:   Number of concurrent requests [5]
+            document:     Custom GraphQL document/query to send alongside probes
+            insecure:     Skip TLS certificate verification [false]
+        """
+        if not CLAIRVOYANCE_BIN.exists():
+            return {"success": False, "error": f"clairvoyance not found at {CLAIRVOYANCE_BIN}"}
+
+        cmd = [str(CLAIRVOYANCE_BIN), target]
+        if wordlist:
+            cmd += ["-w", wordlist]
+        if output_file:
+            cmd += ["-o", output_file]
+        if concurrent:
+            cmd += ["-c", str(concurrent)]
+        if document:
+            cmd += ["-d", document]
+        if insecure:
+            cmd += ["-x", "ignore"]
+        if headers:
+            for h in headers.split(","):
+                h = h.strip()
+                if h:
+                    cmd += ["-H", h]
+
+        logger.info(f"{Aegis360Colors.MATRIX_GREEN}🔍 [clairvoyance] Recovering schema (introspection-less): {target}{Aegis360Colors.RESET}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            success = proc.returncode == 0
+            result = {
+                "success": success,
+                "tool": "clairvoyance",
+                "target": target,
+                "output_file": output_file or "stdout",
+                "stdout": proc.stdout,
+                "stderr": proc.stderr,
+                "returncode": proc.returncode,
+            }
+            if success:
+                logger.info(f"{Aegis360Colors.SUCCESS}✅ [clairvoyance] Schema recovery complete{Aegis360Colors.RESET}")
+            else:
+                logger.error(f"{Aegis360Colors.ERROR}❌ [clairvoyance] Failed: {proc.stderr[:150]}{Aegis360Colors.RESET}")
+            return result
+        except subprocess.TimeoutExpired:
+            return {"success": False, "error": "clairvoyance timed out after 300s", "target": target}
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "target": target}
+
+    @mcp.tool()
+    def graphqlmap_exploit(
+        target: str,
+        headers: str = "",
+        proxy: str = "",
+        command: str = "",
+        detect_injection: bool = True,
+        dump_schema: bool = False,
+        batch: bool = False,
+        insecure: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Exploit GraphQL injection vulnerabilities using GraphQLmap.
+
+        Provides SQL/NoSQL injection testing, SSTI detection, field fuzzing,
+        and schema dumping against GraphQL endpoints.
+
+        Args:
+            target:           GraphQL endpoint URL (e.g. https://example.com/graphql)
+            headers:          Extra HTTP headers as JSON string e.g. '{"Authorization":"Bearer tok"}'
+            proxy:            Proxy URL e.g. http://127.0.0.1:8080
+            command:          GraphQLmap command to run non-interactively (e.g. 'dump_via_introspection')
+            detect_injection: Run injection detection probes [true]
+            dump_schema:      Dump schema via introspection [false]
+            batch:            Enable batching query attacks [false]
+            insecure:         Skip TLS certificate verification [false]
+        """
+        if not GRAPHQLMAP_BIN.exists():
+            return {"success": False, "error": f"graphqlmap not found at {GRAPHQLMAP_BIN}"}
+
+        cmd = [str(GRAPHQLMAP_BIN), "--url", target]
+        if proxy:
+            cmd += ["--proxy", proxy]
+        if headers:
+            cmd += ["--headers", headers]
+        if insecure:
+            cmd += ["--insecure"]
+
+        # Build non-interactive command sequence
+        stdin_cmds = []
+        if dump_schema:
+            stdin_cmds.append("dump_via_introspection")
+        if detect_injection:
+            stdin_cmds.append("detect_injection")
+        if batch:
+            stdin_cmds.append("batch_attack")
+        if command:
+            stdin_cmds.append(command)
+        stdin_cmds.append("exit")
+        stdin_input = "\n".join(stdin_cmds)
+
+        logger.info(f"{Aegis360Colors.HACKER_RED}⚡ [graphqlmap] Exploiting GraphQL endpoint: {target}{Aegis360Colors.RESET}")
+        try:
+            proc = subprocess.run(
+                cmd, input=stdin_input, capture_output=True, text=True, timeout=120
+            )
+            success = proc.returncode == 0 or bool(proc.stdout)
+            result = {
+                "success": success,
+                "tool": "graphqlmap",
+                "target": target,
+                "commands_run": stdin_cmds,
+                "stdout": proc.stdout,
+                "stderr": proc.stderr,
+                "returncode": proc.returncode,
+            }
+            if success:
+                logger.info(f"{Aegis360Colors.SUCCESS}✅ [graphqlmap] Exploitation run complete: {target}{Aegis360Colors.RESET}")
+            else:
+                logger.error(f"{Aegis360Colors.ERROR}❌ [graphqlmap] Failed: {proc.stderr[:150]}{Aegis360Colors.RESET}")
+            return result
+        except subprocess.TimeoutExpired:
+            return {"success": False, "error": "graphqlmap timed out after 120s", "target": target}
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "target": target}
 
     @mcp.tool()
     def jwt_analyzer(jwt_token: str, target_url: str = "") -> Dict[str, Any]:
