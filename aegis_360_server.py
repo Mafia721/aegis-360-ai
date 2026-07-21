@@ -121,6 +121,35 @@ except PermissionError:
     )
 logger = logging.getLogger(__name__)
 
+# Live tool output log — written by EnhancedCommandExecutor, tailed by tmux monitor
+_LIVE_LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aegis360_live.log')
+try:
+    _live_log_file = open(_LIVE_LOG_PATH, 'a', buffering=1, encoding='utf-8')
+except OSError:
+    _live_log_file = None
+
+def _write_live(tool: str, stream: str, line: str):
+    """Append one tool output line to the live log (non-blocking)."""
+    if _live_log_file:
+        import datetime as _dt
+        ts = _dt.datetime.now().strftime('%H:%M:%S')
+        tag = 'OUT' if stream == 'stdout' else 'ERR'
+        _live_log_file.write(f"[{ts}] [{tool:<22}] [{tag}] {line}\n")
+
+def _tool_name_from_cmd(cmd: str) -> str:
+    """Extract a short tool label from a shell command string."""
+    import shlex as _shlex
+    try:
+        parts = _shlex.split(cmd)
+        # skip python/python3 interpreter prefixes
+        for p in parts:
+            base = os.path.basename(p)
+            if base not in ('python', 'python3', 'python3.11', 'python3.12', 'python3.13', 'sudo', 'env'):
+                return base[:22]
+    except Exception:
+        pass
+    return cmd.split()[0][:22] if cmd.strip() else 'unknown'
+
 # Flask app configuration
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
@@ -6839,23 +6868,25 @@ class EnhancedCommandExecutor:
 
     def _read_stdout(self):
         """Thread function to continuously read and display stdout"""
+        tool = _tool_name_from_cmd(self.command)
         try:
             for line in iter(self.process.stdout.readline, ''):
                 if line:
                     self.stdout_data += line
-                    # Real-time output display
                     logger.info(f"📤 STDOUT: {line.strip()}")
+                    _write_live(tool, 'stdout', line.rstrip())
         except Exception as e:
             logger.error(f"Error reading stdout: {e}")
 
     def _read_stderr(self):
         """Thread function to continuously read and display stderr"""
+        tool = _tool_name_from_cmd(self.command)
         try:
             for line in iter(self.process.stderr.readline, ''):
                 if line:
                     self.stderr_data += line
-                    # Real-time error output display
                     logger.warning(f"📥 STDERR: {line.strip()}")
+                    _write_live(tool, 'stderr', line.rstrip())
         except Exception as e:
             logger.error(f"Error reading stderr: {e}")
 
@@ -6912,6 +6943,8 @@ class EnhancedCommandExecutor:
 
         logger.info(f"🚀 EXECUTING: {self.command}")
         logger.info(f"⏱️  TIMEOUT: {self.timeout}s | PID: Starting...")
+        _write_live(_tool_name_from_cmd(self.command), 'stdout',
+                    f"{'─'*60}\n[{_tool_name_from_cmd(self.command)}] ▶ START: {self.command[:120]}")
 
         try:
             self.process = subprocess.Popen(
@@ -6958,9 +6991,13 @@ class EnhancedCommandExecutor:
 
                 if self.return_code == 0:
                     logger.info(f"✅ SUCCESS: Command completed | Exit Code: {self.return_code} | Duration: {execution_time:.2f}s")
+                    _write_live(_tool_name_from_cmd(self.command), 'stdout',
+                                f"[{_tool_name_from_cmd(self.command)}] ✅ DONE in {execution_time:.1f}s (exit 0)")
                     telemetry.record_execution(True, execution_time)
                 else:
                     logger.warning(f"⚠️  WARNING: Command completed with errors | Exit Code: {self.return_code} | Duration: {execution_time:.2f}s")
+                    _write_live(_tool_name_from_cmd(self.command), 'stderr',
+                                f"[{_tool_name_from_cmd(self.command)}] ⚠️  EXIT {self.return_code} after {execution_time:.1f}s")
                     telemetry.record_execution(False, execution_time)
 
             except subprocess.TimeoutExpired:
