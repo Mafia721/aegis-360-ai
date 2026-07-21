@@ -11,6 +11,14 @@
       "description": "Aegis-360 AI v6.0 - Advanced Cybersecurity Automation Platform. Turn off alwaysAllow if you don't want autonomous execution!",
       "timeout": 300,
       "alwaysAllow": []
+    },
+    "graphify": {
+      "type": "stdio",
+      "command": "/home/kali/.local/bin/graphify-mcp",
+      "args": [],
+      "description": "Graphify knowledge graph MCP server — query, path, explain nodes in any built graph. Serves graphify-out/graph.json from the working directory.",
+      "timeout": 60,
+      "alwaysAllow": []
     }
   }
 }

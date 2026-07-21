@@ -1,0 +1,92 @@
+{
+  "aegis-360-ai-mcp.json": {
+    "mtime": 1784648556.9086185,
+    "ast_hash": "e1906bc161c603043da6d3c59c10e119",
+    "semantic_hash": "e1906bc161c603043da6d3c59c10e119"
+  },
+  "aegis360chat.py": {
+    "mtime": 1781553297.4925718,
+    "ast_hash": "0f82ca4541da03e8acfc98c9acf9449b",
+    "semantic_hash": "0f82ca4541da03e8acfc98c9acf9449b"
+  },
+  "aegis_360_mcp.py": {
+    "mtime": 1784649259.6765196,
+    "ast_hash": "2402293609067ace647ffa5da739e17b",
+    "semantic_hash": "2402293609067ace647ffa5da739e17b"
+  },
+  "aegis_360_orchestrator.py": {
+    "mtime": 1781364786.6553078,
+    "ast_hash": "f498fb5694030a12c4bee82c1c4869f4",
+    "semantic_hash": "f498fb5694030a12c4bee82c1c4869f4"
+  },
+  "aegis_360_server.py": {
+    "mtime": 1784649277.5281699,
+    "ast_hash": "5d4785586948d3d4055e4b41984d2e38",
+    "semantic_hash": "5d4785586948d3d4055e4b41984d2e38"
+  },
+  "install.sh": {
+    "mtime": 1781205090.0,
+    "ast_hash": "8418e9fadc897e9569f98449a7d95559",
+    "semantic_hash": "8418e9fadc897e9569f98449a7d95559"
+  },
+  "install_sudo_tools.sh": {
+    "mtime": 1781376546.069079,
+    "ast_hash": "9cb7bfb09b88b674e460c5d7e7d00f53",
+    "semantic_hash": "9cb7bfb09b88b674e460c5d7e7d00f53"
+  },
+  "run_surfacezero_druva.py": {
+    "mtime": 1782496565.207358,
+    "ast_hash": "0e2a67219d343d3b92198f2da953fd27",
+    "semantic_hash": "0e2a67219d343d3b92198f2da953fd27"
+  },
+  "skills-lock.json": {
+    "mtime": 1782669145.0860858,
+    "ast_hash": "7b87b01d7cb4e918048fea1d64357ca9",
+    "semantic_hash": "7b87b01d7cb4e918048fea1d64357ca9"
+  },
+  "upload_to_github.sh": {
+    "mtime": 1781205090.0,
+    "ast_hash": "25fdfc703e6a0d1e13838013307d70e7",
+    "semantic_hash": "25fdfc703e6a0d1e13838013307d70e7"
+  },
+  "CAPABILITIES.md": {
+    "mtime": 1781553415.307585,
+    "ast_hash": "77971fd6e44cc5a48da025184e5c5ee3",
+    "semantic_hash": "77971fd6e44cc5a48da025184e5c5ee3"
+  },
+  "CHANGELOG.md": {
+    "mtime": 1781365023.9321568,
+    "ast_hash": "8319bbea611e64832c39f3bc6e84932a",
+    "semantic_hash": "8319bbea611e64832c39f3bc6e84932a"
+  },
+  "CONTRIBUTING.md": {
+    "mtime": 1781364801.9848404,
+    "ast_hash": "3553124a802c63259812e293293e2e68",
+    "semantic_hash": "3553124a802c63259812e293293e2e68"
+  },
+  "INSTALL.md": {
+    "mtime": 1781364801.9849792,
+    "ast_hash": "030dd0bfd7c4d0da71e3bd1872dbe712",
+    "semantic_hash": "030dd0bfd7c4d0da71e3bd1872dbe712"
+  },
+  "README.md": {
+    "mtime": 1781364980.454677,
+    "ast_hash": "5f3dfa2b5a69f3455e297cb8647a011d",
+    "semantic_hash": "5f3dfa2b5a69f3455e297cb8647a011d"
+  },
+  "SECURITY.md": {
+    "mtime": 1781364801.985124,
+    "ast_hash": "b242b2dc62291a91cf8ad6b6d4cd59a3",
+    "semantic_hash": "b242b2dc62291a91cf8ad6b6d4cd59a3"
+  },
+  "TOOLS.md": {
+    "mtime": 1781555934.878165,
+    "ast_hash": "ecef5acdafd451138af4390d8abd1465",
+    "semantic_hash": "ecef5acdafd451138af4390d8abd1465"
+  },
+  "requirements.txt": {
+    "mtime": 1781205090.0,
+    "ast_hash": "31867dee1d7a4df9570576a6f4a055f5",
+    "semantic_hash": "31867dee1d7a4df9570576a6f4a055f5"
+  }
+}

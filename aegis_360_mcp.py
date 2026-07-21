@@ -47,6 +47,7 @@ AFLPP_DIR       = Path(__file__).parent / "tools" / "aflplusplus"
 GRAPHW00F_BIN   = Path(__file__).parent / "tools" / "graphw00f" / "main.py"
 GRAPHQLMAP_BIN  = Path(__file__).parent / "aegis-360-env" / "bin" / "graphqlmap"
 CLAIRVOYANCE_BIN = Path(__file__).parent / "aegis-360-env" / "bin" / "clairvoyance"
+APIHARVESTER_DIR = Path(__file__).parent / "tools" / "apiharvester"
 
 # Burp Suite Professional integration
 BURP_PROXY_HOST = "127.0.0.1"
@@ -13305,6 +13306,282 @@ session.fuzz()
         else:
             logger.error(f"{Aegis360Colors.ERROR}❌ Electronegativity scan failed for {input}{Aegis360Colors.RESET}")
         return result
+
+    # -------------------------------------------------------------------------
+    # GRAPHIFY — Knowledge Graph & Token Optimization Tools
+    # -------------------------------------------------------------------------
+
+    @mcp.tool()
+    def graphify_build(
+        path: str = ".",
+        mode: str = "",
+        no_cluster: bool = False,
+        force: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Build a Graphify knowledge graph from a local source directory.
+
+        Uses tree-sitter AST parsing across 36+ languages — no LLM required, runs
+        entirely locally. Produces graphify-out/graph.json plus an interactive HTML
+        visualization. Use this once on a target codebase; then query/path/explain
+        against the graph instead of reading raw files, cutting context tokens
+        by 80-95%.
+
+        Args:
+            path: Directory to graph (default: current directory)
+            mode: Extraction depth — "" (standard) or "deep" (more relationships)
+            no_cluster: Skip community detection (faster, omits subsystem labels)
+            force: Overwrite graph even if rebuild has fewer nodes (use after refactors)
+
+        Returns:
+            Build output with node/edge counts and output file paths
+        """
+        data = {"path": path, "mode": mode, "no_cluster": no_cluster, "force": force}
+        logger.info(f"🕸️  Graphify build: {path}")
+        result = aegis360_client.safe_post("api/tools/graphify_build", data)
+        if result.get("success"):
+            logger.info(f"✅ Graphify graph built for {path}")
+        else:
+            logger.error(f"❌ Graphify build failed for {path}")
+        return result
+
+    @mcp.tool()
+    def graphify_update(path: str = ".", force: bool = False) -> Dict[str, Any]:
+        """
+        Incrementally update an existing Graphify knowledge graph.
+
+        Re-extracts only changed files — much faster than a full rebuild. Use after
+        modifying source files to keep the graph current without re-processing the
+        whole codebase.
+
+        Args:
+            path: Directory containing graphify-out/ to update
+            force: Overwrite graph even if rebuild has fewer nodes
+
+        Returns:
+            Update output with changed node counts
+        """
+        data = {"path": path, "force": force}
+        logger.info(f"🔄 Graphify update: {path}")
+        result = aegis360_client.safe_post("api/tools/graphify_update", data)
+        if result.get("success"):
+            logger.info(f"✅ Graphify graph updated for {path}")
+        else:
+            logger.error(f"❌ Graphify update failed for {path}")
+        return result
+
+    @mcp.tool()
+    def graphify_query(question: str, graph_path: str = "") -> Dict[str, Any]:
+        """
+        Query a Graphify knowledge graph with a natural-language question.
+
+        Returns targeted graph context — only the relevant nodes and edges — instead
+        of entire source files. Dramatically reduces tokens needed to answer questions
+        about a codebase (e.g. "what calls the auth handler?", "where is rate limiting
+        implemented?", "what connects the database to the API layer?").
+
+        Args:
+            question: Natural-language question about the codebase
+            graph_path: Path to graph.json (default: graphify-out/graph.json)
+
+        Returns:
+            Relevant graph subgraph and node descriptions answering the question
+        """
+        data = {"question": question, "graph_path": graph_path}
+        logger.info(f"🔍 Graphify query: {question[:80]}")
+        result = aegis360_client.safe_post("api/tools/graphify_query", data)
+        if result.get("success"):
+            logger.info(f"✅ Graphify query completed")
+        else:
+            logger.error(f"❌ Graphify query failed")
+        return result
+
+    @mcp.tool()
+    def graphify_path(node_a: str, node_b: str, graph_path: str = "") -> Dict[str, Any]:
+        """
+        Find the shortest relationship path between two nodes in a knowledge graph.
+
+        Useful for understanding how components connect — e.g. how the auth module
+        reaches the database, or how a user input flows to an exec call. Much cheaper
+        than reading all intermediate files.
+
+        Args:
+            node_a: Starting node name (function, class, module, or file)
+            node_b: Target node name
+            graph_path: Path to graph.json (default: graphify-out/graph.json)
+
+        Returns:
+            Shortest path with relationship types between each hop
+        """
+        data = {"node_a": node_a, "node_b": node_b, "graph_path": graph_path}
+        logger.info(f"🛤️  Graphify path: {node_a} → {node_b}")
+        result = aegis360_client.safe_post("api/tools/graphify_path", data)
+        if result.get("success"):
+            logger.info(f"✅ Graphify path found")
+        else:
+            logger.error(f"❌ Graphify path failed")
+        return result
+
+    @mcp.tool()
+    def graphify_explain(node: str, graph_path: str = "") -> Dict[str, Any]:
+        """
+        Get a plain-language explanation of a node and all its direct relationships.
+
+        Returns what a function/class/module does plus what it calls, imports, and
+        is called by — a focused view that replaces reading the whole file and its
+        dependencies.
+
+        Args:
+            node: Node name to explain (function, class, module, or file)
+            graph_path: Path to graph.json (default: graphify-out/graph.json)
+
+        Returns:
+            Node description with incoming/outgoing relationships
+        """
+        data = {"node": node, "graph_path": graph_path}
+        logger.info(f"💡 Graphify explain: {node}")
+        result = aegis360_client.safe_post("api/tools/graphify_explain", data)
+        if result.get("success"):
+            logger.info(f"✅ Graphify explain completed for {node}")
+        else:
+            logger.error(f"❌ Graphify explain failed for {node}")
+        return result
+
+    @mcp.tool()
+    def graphify_benchmark(graph_path: str = "graphify-out/graph.json") -> Dict[str, Any]:
+        """
+        Measure token reduction achieved by using the knowledge graph vs naive full-corpus loading.
+
+        Reports estimated tokens saved per query when using graphify queries instead of
+        reading raw source files. Use this to quantify the token optimization benefit
+        after building a graph.
+
+        Args:
+            graph_path: Path to the graph.json to benchmark
+
+        Returns:
+            Token counts: full corpus vs graph-assisted, plus reduction percentage
+        """
+        data = {"graph_path": graph_path}
+        logger.info(f"📏 Graphify benchmark: {graph_path}")
+        result = aegis360_client.safe_post("api/tools/graphify_benchmark", data)
+        if result.get("success"):
+            logger.info(f"✅ Graphify benchmark completed")
+        else:
+            logger.error(f"❌ Graphify benchmark failed")
+        return result
+
+    # -------------------------------------------------------------------------
+    # APIHARVESTER — OWASP API Top 10 Black-Box Attack Automation
+    # -------------------------------------------------------------------------
+
+    @mcp.tool()
+    def apiharvester_scan(
+        target: str,
+        auth: str = "",
+        auth2: str = "",
+        attacks: str = "",
+        threads: int = 20,
+        timeout: int = 10,
+        burst: int = 20,
+        waf_bypass: bool = False,
+        skip_recon: bool = False,
+        attacks_only: bool = False,
+        recon_dir: str = "",
+        output_dir: str = "",
+        json_report: str = "",
+        html_report: str = "",
+    ) -> Dict[str, Any]:
+        """
+        Run APIHarvester — one-shot OWASP API Top 10 black-box attack automation.
+
+        Discovers API endpoints from a root domain, identifies parameters and HTTP
+        methods, then executes attack simulations covering the full OWASP API Top 10:
+        BOLA, broken auth, mass assignment, rate limiting, BFLA, business logic,
+        SSRF, misconfiguration, inventory exposure, SSPP, injection, reliability,
+        and secrets leakage.
+
+        Args:
+            target:       Root domain to scan (e.g. api.example.com)
+            auth:         Primary/high-privilege auth token (e.g. 'Bearer eyJ...')
+            auth2:        Low-privilege token for differential BOLA/BFLA testing
+            attacks:      Comma-separated attack modules to run. Default: all.
+                          Options: bola, broken_auth, mass_assignment, rate_limit,
+                          bfla, business_logic, ssrf, misconfiguration, inventory,
+                          sspp, injection, reliability, secrets
+            threads:      Thread pool size (default: 20)
+            timeout:      HTTP request timeout in seconds (default: 10)
+            burst:        Rapid request count for rate-limit tests (default: 20)
+            waf_bypass:   Rotate User-Agents and retry WAF-blocked requests (default: False)
+            skip_recon:   Skip recon phases, use existing output files
+            attacks_only: Run only attack phases (implies skip_recon)
+            recon_dir:    Path to pre-existing recon output directory
+            output_dir:   Directory for scan output (default: ./output/<domain>)
+            json_report:  Write JSONL findings report to this file path
+            html_report:  Write HTML findings report to this file path
+
+        Returns:
+            Scan results with discovered endpoints, attack findings, and report paths
+        """
+        if not APIHARVESTER_DIR.exists():
+            return {"success": False, "error": f"APIHarvester not found at {APIHARVESTER_DIR}"}
+
+        cmd = [str(RAPTOR_PYTHON), "-m", "apiharvester", target]
+
+        if auth:
+            cmd += ["--auth", auth]
+        if auth2:
+            cmd += ["--auth2", auth2]
+        if attacks:
+            cmd += ["--attacks", attacks]
+        if threads != 20:
+            cmd += ["--threads", str(threads)]
+        if timeout != 10:
+            cmd += ["--timeout", str(timeout)]
+        if burst != 20:
+            cmd += ["--burst", str(burst)]
+        if waf_bypass:
+            cmd.append("--waf-bypass")
+        if skip_recon:
+            cmd.append("--skip-recon")
+        if attacks_only:
+            cmd.append("--attacks-only")
+        if recon_dir:
+            cmd += ["--recon-dir", recon_dir]
+        if output_dir:
+            cmd += ["--output-dir", output_dir]
+        if json_report:
+            cmd += ["--json", json_report]
+        if html_report:
+            cmd += ["--html", html_report]
+
+        logger.info(f"{Aegis360Colors.FIRE_RED}🌾 [apiharvester] Scanning: {target}{Aegis360Colors.RESET}")
+        try:
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=600,
+                cwd=str(APIHARVESTER_DIR),
+            )
+            success = proc.returncode == 0
+            result = {
+                "success": success,
+                "tool": "apiharvester",
+                "target": target,
+                "stdout": proc.stdout,
+                "stderr": proc.stderr,
+                "returncode": proc.returncode,
+            }
+            if success:
+                logger.info(f"{Aegis360Colors.SUCCESS}✅ [apiharvester] Scan complete: {target}{Aegis360Colors.RESET}")
+            else:
+                logger.error(f"{Aegis360Colors.ERROR}❌ [apiharvester] Failed: {proc.stderr[:200]}{Aegis360Colors.RESET}")
+            return result
+        except subprocess.TimeoutExpired:
+            return {"success": False, "error": "apiharvester timed out after 600s", "target": target}
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "target": target}
 
     return mcp
 

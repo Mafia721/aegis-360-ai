@@ -10445,7 +10445,7 @@ def nmap():
             }
             result = execute_command_with_recovery("nmap", command, tool_params)
         else:
-            result = execute_command(command)
+            result = execute_command_with_recovery("nmap", command)
 
         logger.info(f"📊 Nmap scan completed for {target}")
         return jsonify(result)
@@ -10497,7 +10497,7 @@ def gobuster():
             }
             result = execute_command_with_recovery("gobuster", command, tool_params)
         else:
-            result = execute_command(command)
+            result = execute_command_with_recovery("gobuster", command)
 
         logger.info(f"📊 Gobuster scan completed for {url}")
         return jsonify(result)
@@ -10553,7 +10553,7 @@ def nuclei():
             }
             result = execute_command_with_recovery("nuclei", command, tool_params)
         else:
-            result = execute_command(command)
+            result = execute_command_with_recovery("nuclei", command)
 
         logger.info(f"📊 Nuclei scan completed for {target}")
         return jsonify(result)
@@ -10602,7 +10602,7 @@ def prowler():
             command += f" {additional_args}"
 
         logger.info(f"☁️  Starting Prowler {provider} security assessment")
-        result = execute_command(command)
+        result = execute_command_with_recovery("prowler", command)
         result["output_directory"] = output_dir
         logger.info(f"📊 Prowler assessment completed")
         return jsonify(result)
@@ -10645,7 +10645,7 @@ def trivy():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Trivy {scan_type} scan: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("trivy", command)
         if output_file:
             result["output_file"] = output_file
         logger.info(f"📊 Trivy scan completed for {target}")
@@ -10692,7 +10692,7 @@ def scout_suite():
             command += f" {additional_args}"
 
         logger.info(f"☁️  Starting Scout Suite {provider} assessment")
-        result = execute_command(command)
+        result = execute_command_with_recovery("scout_suite", command)
         result["report_directory"] = report_dir
         logger.info(f"📊 Scout Suite assessment completed")
         return jsonify(result)
@@ -10726,7 +10726,7 @@ def cloudmapper():
             command += f" {additional_args}"
 
         logger.info(f"☁️  Starting CloudMapper {action}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("cloudmapper", command)
         logger.info(f"📊 CloudMapper {action} completed")
         return jsonify(result)
     except Exception as e:
@@ -10771,7 +10771,7 @@ def pacu():
             command += f" {additional_args}"
 
         logger.info(f"☁️  Starting Pacu AWS exploitation")
-        result = execute_command(command)
+        result = execute_command_with_recovery("pacu", command)
 
         # Cleanup
         try:
@@ -10822,7 +10822,7 @@ def kube_hunter():
             command += f" {additional_args}"
 
         logger.info(f"☁️  Starting kube-hunter Kubernetes scan")
-        result = execute_command(command)
+        result = execute_command_with_recovery("kube_hunter", command)
         logger.info(f"📊 kube-hunter scan completed")
         return jsonify(result)
     except Exception as e:
@@ -10858,7 +10858,7 @@ def kube_bench():
             command += f" {additional_args}"
 
         logger.info(f"☁️  Starting kube-bench CIS benchmark")
-        result = execute_command(command)
+        result = execute_command_with_recovery("kube_bench", command)
         logger.info(f"📊 kube-bench benchmark completed")
         return jsonify(result)
     except Exception as e:
@@ -10890,7 +10890,7 @@ def docker_bench_security():
             command += f" {additional_args}"
 
         logger.info(f"🐳 Starting Docker Bench Security assessment")
-        result = execute_command(command)
+        result = execute_command_with_recovery("docker_bench_security", command)
         result["output_file"] = output_file
         logger.info(f"📊 Docker Bench Security completed")
         return jsonify(result)
@@ -10925,7 +10925,7 @@ def clair():
             command += f" {additional_args}"
 
         logger.info(f"🐳 Starting Clair vulnerability scan: {image}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("clair", command)
         logger.info(f"📊 Clair scan completed for {image}")
         return jsonify(result)
     except Exception as e:
@@ -10958,7 +10958,7 @@ def falco():
             command += f" {additional_args}"
 
         logger.info(f"🛡️  Starting Falco runtime monitoring for {duration}s")
-        result = execute_command(command)
+        result = execute_command_with_recovery("falco", command)
         logger.info(f"📊 Falco monitoring completed")
         return jsonify(result)
     except Exception as e:
@@ -10995,7 +10995,7 @@ def checkov():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Checkov IaC scan: {directory}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("checkov", command)
         logger.info(f"📊 Checkov scan completed")
         return jsonify(result)
     except Exception as e:
@@ -11029,7 +11029,7 @@ def terrascan():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Terrascan IaC scan: {iac_dir}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("terrascan", command)
         logger.info(f"📊 Terrascan scan completed")
         return jsonify(result)
     except Exception as e:
@@ -11057,7 +11057,7 @@ def dirb():
             command += f" {additional_args}"
 
         logger.info(f"📁 Starting Dirb scan: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("dirb", command)
         logger.info(f"📊 Dirb scan completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -11086,7 +11086,7 @@ def nikto():
             command += f" {additional_args}"
 
         logger.info(f"🔬 Starting Nikto scan: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("nikto", command)
         logger.info(f"📊 Nikto scan completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11119,7 +11119,7 @@ def sqlmap():
             command += f" {additional_args}"
 
         logger.info(f"💉 Starting SQLMap scan: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("sqlmap", command)
         logger.info(f"📊 SQLMap scan completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -11156,7 +11156,7 @@ def metasploit():
         command = f"msfconsole -q -r {resource_file}"
 
         logger.info(f"🚀 Starting Metasploit module: {module}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("metasploit", command)
 
         # Clean up the temporary file
         try:
@@ -11215,7 +11215,7 @@ def hydra():
         command += f" {target} {service}"
 
         logger.info(f"🔑 Starting Hydra attack: {target}:{service}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("hydra", command)
         logger.info(f"📊 Hydra attack completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11254,7 +11254,7 @@ def john():
         command += f" {hash_file}"
 
         logger.info(f"🔐 Starting John the Ripper: {hash_file}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("john", command)
         logger.info(f"📊 John the Ripper completed")
         return jsonify(result)
     except Exception as e:
@@ -11283,7 +11283,7 @@ def wpscan():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting WPScan: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("wpscan", command)
         logger.info(f"📊 WPScan completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -11309,7 +11309,7 @@ def enum4linux():
         command = f"enum4linux {additional_args} {target}"
 
         logger.info(f"🔍 Starting Enum4linux: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("enum4linux", command)
         logger.info(f"📊 Enum4linux completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11352,7 +11352,7 @@ def ffuf():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting FFuf {mode} fuzzing: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("ffuf", command)
         logger.info(f"📊 FFuf fuzzing completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -11398,7 +11398,7 @@ def netexec():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting NetExec {protocol} scan: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("netexec", command)
         logger.info(f"📊 NetExec scan completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11433,7 +11433,7 @@ def amass():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Amass {mode}: {domain}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("amass", command)
         logger.info(f"📊 Amass completed for {domain}")
         return jsonify(result)
     except Exception as e:
@@ -11477,7 +11477,7 @@ def hashcat():
             command += f" {additional_args}"
 
         logger.info(f"🔐 Starting Hashcat attack: mode {attack_mode}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("hashcat", command)
         logger.info(f"📊 Hashcat attack completed")
         return jsonify(result)
     except Exception as e:
@@ -11514,7 +11514,7 @@ def subfinder():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Subfinder: {domain}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("subfinder", command)
         logger.info(f"📊 Subfinder completed for {domain}")
         return jsonify(result)
     except Exception as e:
@@ -11555,7 +11555,7 @@ def smbmap():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting SMBMap: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("smbmap", command)
         logger.info(f"📊 SMBMap completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11597,7 +11597,7 @@ def rustscan():
             command += f" {additional_args}"
 
         logger.info(f"⚡ Starting Rustscan: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("rustscan", command)
         logger.info(f"📊 Rustscan completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11640,7 +11640,7 @@ def masscan():
             command += f" {additional_args}"
 
         logger.info(f"🚀 Starting Masscan: {target} at rate {rate}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("masscan", command)
         logger.info(f"📊 Masscan completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11695,7 +11695,7 @@ def nmap_advanced():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Advanced Nmap: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("nmap_advanced", command)
         logger.info(f"📊 Advanced Nmap completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11731,7 +11731,7 @@ def autorecon():
             command += f" {additional_args}"
 
         logger.info(f"🔄 Starting AutoRecon: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("autorecon", command)
         logger.info(f"📊 AutoRecon completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11786,7 +11786,7 @@ def enum4linux_ng():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Enum4linux-ng: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("enum4linux_ng", command)
         logger.info(f"📊 Enum4linux-ng completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11830,7 +11830,7 @@ def rpcclient():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting rpcclient: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("rpcclient", command)
         logger.info(f"📊 rpcclient completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11862,7 +11862,7 @@ def nbtscan():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting nbtscan: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("nbtscan", command)
         logger.info(f"📊 nbtscan completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -11899,7 +11899,7 @@ def arp_scan():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting arp-scan: {target if target else 'local network'}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("arp_scan", command)
         logger.info(f"📊 arp-scan completed")
         return jsonify(result)
     except Exception as e:
@@ -11941,7 +11941,7 @@ def responder():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Responder on interface: {interface}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("responder", command)
         logger.info(f"📊 Responder completed")
         return jsonify(result)
     except Exception as e:
@@ -11981,7 +11981,7 @@ def volatility():
             command += f" {additional_args}"
 
         logger.info(f"🧠 Starting Volatility analysis: {plugin}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("volatility", command)
         logger.info(f"📊 Volatility analysis completed")
         return jsonify(result)
     except Exception as e:
@@ -12026,7 +12026,7 @@ def msfvenom():
             command += f" {additional_args}"
 
         logger.info(f"🚀 Starting MSFVenom payload generation: {payload}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("msfvenom", command)
         logger.info(f"📊 MSFVenom payload generated")
         return jsonify(result)
     except Exception as e:
@@ -12072,7 +12072,7 @@ def gdb():
         command += " -batch"
 
         logger.info(f"🔧 Starting GDB analysis: {binary}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("gdb", command)
 
         if commands and os.path.exists("/tmp/gdb_commands.txt"):
             try:
@@ -12115,7 +12115,7 @@ def radare2():
             command += f" {additional_args}"
 
         logger.info(f"🔧 Starting Radare2 analysis: {binary}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("radare2", command)
 
         if commands and os.path.exists("/tmp/r2_commands.txt"):
             try:
@@ -12157,7 +12157,7 @@ def binwalk():
         command += f" {file_path}"
 
         logger.info(f"🔧 Starting Binwalk analysis: {file_path}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("binwalk", command)
         logger.info(f"📊 Binwalk analysis completed for {file_path}")
         return jsonify(result)
     except Exception as e:
@@ -12190,7 +12190,7 @@ def ropgadget():
             command += f" {additional_args}"
 
         logger.info(f"🔧 Starting ROPgadget search: {binary}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("ropgadget", command)
         logger.info(f"📊 ROPgadget search completed for {binary}")
         return jsonify(result)
     except Exception as e:
@@ -12215,7 +12215,7 @@ def checksec():
         command = f"checksec --file={binary}"
 
         logger.info(f"🔧 Starting Checksec analysis: {binary}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("checksec", command)
         logger.info(f"📊 Checksec analysis completed for {binary}")
         return jsonify(result)
     except Exception as e:
@@ -12251,7 +12251,7 @@ def xxd():
         command += f" {file_path}"
 
         logger.info(f"🔧 Starting XXD hex dump: {file_path}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("xxd", command)
         logger.info(f"📊 XXD hex dump completed for {file_path}")
         return jsonify(result)
     except Exception as e:
@@ -12283,7 +12283,7 @@ def strings():
         command += f" {file_path}"
 
         logger.info(f"🔧 Starting Strings extraction: {file_path}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("strings", command)
         logger.info(f"📊 Strings extraction completed for {file_path}")
         return jsonify(result)
     except Exception as e:
@@ -12320,7 +12320,7 @@ def objdump():
         command += f" {binary}"
 
         logger.info(f"🔧 Starting Objdump analysis: {binary}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("objdump", command)
         logger.info(f"📊 Objdump analysis completed for {binary}")
         return jsonify(result)
     except Exception as e:
@@ -12366,7 +12366,7 @@ def ghidra():
             command += f" {additional_args}"
 
         logger.info(f"🔧 Starting Ghidra analysis: {binary}")
-        result = execute_command(command, timeout=analysis_timeout)
+        result = execute_command_with_recovery("ghidra", command, timeout=analysis_timeout)
         logger.info(f"📊 Ghidra analysis completed for {binary}")
         return jsonify(result)
     except Exception as e:
@@ -12434,7 +12434,7 @@ p.interactive()
             command += f" {additional_args}"
 
         logger.info(f"🔧 Starting Pwntools exploit: {exploit_type}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("pwntools", command)
 
         # Cleanup
         try:
@@ -12467,7 +12467,7 @@ def one_gadget():
             command += f" {additional_args}"
 
         logger.info(f"🔧 Starting one_gadget analysis: {libc_path}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("one_gadget", command)
         logger.info(f"📊 one_gadget analysis completed")
         return jsonify(result)
     except Exception as e:
@@ -12508,7 +12508,7 @@ def libc_database():
             command += f" {additional_args}"
 
         logger.info(f"🔧 Starting libc-database {action}: {symbols or libc_id}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("libc_database", command)
         logger.info(f"📊 libc-database {action} completed")
         return jsonify(result)
     except Exception as e:
@@ -12562,7 +12562,7 @@ quit
 
         target_info = binary or f'PID {attach_pid}' or core_file
         logger.info(f"🔧 Starting GDB-PEDA analysis: {target_info}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("gdb_peda", command)
 
         # Cleanup
         if commands and os.path.exists("/tmp/gdb_peda_commands.txt"):
@@ -12708,7 +12708,7 @@ def ropper():
             command += f" {additional_args}"
 
         logger.info(f"🔧 Starting ropper analysis: {binary}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("ropper", command)
         logger.info(f"📊 ropper analysis completed")
         return jsonify(result)
     except Exception as e:
@@ -12745,7 +12745,7 @@ def pwninit():
             command += f" {additional_args}"
 
         logger.info(f"🔧 Starting pwninit setup: {binary}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("pwninit", command)
         logger.info(f"📊 pwninit setup completed")
         return jsonify(result)
     except Exception as e:
@@ -12778,7 +12778,7 @@ def feroxbuster():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Feroxbuster scan: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("feroxbuster", command)
         logger.info(f"📊 Feroxbuster scan completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -12810,7 +12810,7 @@ def dotdotpwn():
         command += " -b"
 
         logger.info(f"🔍 Starting DotDotPwn scan: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("dotdotpwn", command)
         logger.info(f"📊 DotDotPwn scan completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -12843,7 +12843,7 @@ def xsser():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting XSSer scan: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("xsser", command)
         logger.info(f"📊 XSSer scan completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -12873,7 +12873,7 @@ def wfuzz():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Wfuzz scan: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("wfuzz", command)
         logger.info(f"📊 Wfuzz scan completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -12911,7 +12911,7 @@ def dirsearch():
             command += f" {additional_args}"
 
         logger.info(f"📁 Starting Dirsearch scan: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("dirsearch", command)
         logger.info(f"📊 Dirsearch scan completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -12949,7 +12949,7 @@ def katana():
             command += f" {additional_args}"
 
         logger.info(f"⚔️  Starting Katana crawl: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("katana", command)
         logger.info(f"📊 Katana crawl completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -12986,7 +12986,7 @@ def gau():
             command += f" {additional_args}"
 
         logger.info(f"📡 Starting Gau URL discovery: {domain}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("gau", command)
         logger.info(f"📊 Gau URL discovery completed for {domain}")
         return jsonify(result)
     except Exception as e:
@@ -13019,7 +13019,7 @@ def waybackurls():
             command += f" {additional_args}"
 
         logger.info(f"🕰️  Starting Waybackurls discovery: {domain}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("waybackurls", command)
         logger.info(f"📊 Waybackurls discovery completed for {domain}")
         return jsonify(result)
     except Exception as e:
@@ -13058,7 +13058,7 @@ def arjun():
             command += f" {additional_args}"
 
         logger.info(f"🎯 Starting Arjun parameter discovery: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("arjun", command)
         logger.info(f"📊 Arjun parameter discovery completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -13092,7 +13092,7 @@ def paramspider():
             command += f" {additional_args}"
 
         logger.info(f"🕷️  Starting ParamSpider mining: {domain}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("paramspider", command)
         logger.info(f"📊 ParamSpider mining completed for {domain}")
         return jsonify(result)
     except Exception as e:
@@ -13127,7 +13127,7 @@ def x8():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting x8 parameter discovery: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("x8", command)
         logger.info(f"📊 x8 parameter discovery completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -13162,7 +13162,7 @@ def jaeles():
             command += f" {additional_args}"
 
         logger.info(f"🔬 Starting Jaeles vulnerability scan: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("jaeles", command)
         logger.info(f"📊 Jaeles vulnerability scan completed for {url}")
         return jsonify(result)
     except Exception as e:
@@ -13207,7 +13207,7 @@ def dalfox():
             command += f" {additional_args}"
 
         logger.info(f"🎯 Starting Dalfox XSS scan: {url if url else 'pipe mode'}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("dalfox", command)
         logger.info(f"📊 Dalfox XSS scan completed")
         return jsonify(result)
     except Exception as e:
@@ -13257,7 +13257,7 @@ def httpx():
             command += f" {additional_args}"
 
         logger.info(f"🌍 Starting httpx probe: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("httpx", command)
         logger.info(f"📊 httpx probe completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -13286,7 +13286,7 @@ def anew():
             command += f" {additional_args}"
 
         logger.info("📝 Starting anew data processing")
-        result = execute_command(command)
+        result = execute_command_with_recovery("anew", command)
         logger.info("📊 anew data processing completed")
         return jsonify(result)
     except Exception as e:
@@ -13312,7 +13312,7 @@ def qsreplace():
             command += f" {additional_args}"
 
         logger.info("🔄 Starting qsreplace parameter replacement")
-        result = execute_command(command)
+        result = execute_command_with_recovery("qsreplace", command)
         logger.info("📊 qsreplace parameter replacement completed")
         return jsonify(result)
     except Exception as e:
@@ -13345,7 +13345,7 @@ def uro():
             command += f" {additional_args}"
 
         logger.info("🔍 Starting uro URL filtering")
-        result = execute_command(command)
+        result = execute_command_with_recovery("uro", command)
         logger.info("📊 uro URL filtering completed")
         return jsonify(result)
     except Exception as e:
@@ -14434,7 +14434,7 @@ def zap():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting ZAP scan: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("zap", command)
         logger.info(f"📊 ZAP scan completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -14463,7 +14463,7 @@ def wafw00f():
             command += f" {additional_args}"
 
         logger.info(f"🛡️ Starting Wafw00f WAF detection: {target}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("wafw00f", command)
         logger.info(f"📊 Wafw00f completed for {target}")
         return jsonify(result)
     except Exception as e:
@@ -14496,7 +14496,7 @@ def fierce():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting Fierce DNS recon: {domain}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("fierce", command)
         logger.info(f"📊 Fierce completed for {domain}")
         return jsonify(result)
     except Exception as e:
@@ -14533,7 +14533,7 @@ def dnsenum():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting DNSenum: {domain}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("dnsenum", command)
         logger.info(f"📊 DNSenum completed for {domain}")
         return jsonify(result)
     except Exception as e:
@@ -14597,7 +14597,7 @@ def execute_python_script():
         # Execute script
         command = f"{python_path} {script_path}"
         logger.info(f"🐍 Executing Python script in env {env_name}: {filename}")
-        result = execute_command(command, use_cache=False)
+        result = execute_command_with_recovery("execute_python_script", command, use_cache=False)
 
         # Clean up script file
         file_manager.delete_file(filename)
@@ -15473,7 +15473,7 @@ def api_fuzzer():
                 for method in methods:
                     test_url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
                     command = f"curl -s -X {method} -w '%{{http_code}}|%{{size_download}}' '{test_url}'"
-                    result = execute_command(command, use_cache=False)
+                    result = execute_command_with_recovery("api_fuzzer", command, use_cache=False)
                     results.append({
                         "endpoint": endpoint,
                         "method": method,
@@ -15491,7 +15491,7 @@ def api_fuzzer():
             command = f"ffuf -u {base_url}/FUZZ -w {wordlist} -mc 200,201,202,204,301,302,307,401,403,405 -t 50"
 
             logger.info(f"🔍 Starting API endpoint discovery: {base_url}")
-            result = execute_command(command)
+            result = execute_command_with_recovery("api_fuzzer", command)
             logger.info(f"📊 API endpoint discovery completed")
 
             return jsonify({
@@ -15551,7 +15551,7 @@ def graphql_scanner():
 
             clean_query = introspection_query.replace('\n', ' ').replace('  ', ' ').strip()
             command = f"curl -s -X POST -H 'Content-Type: application/json' -d '{{\"query\":\"{clean_query}\"}}' '{endpoint}'"
-            result = execute_command(command, use_cache=False)
+            result = execute_command_with_recovery("graphql_scanner", command, use_cache=False)
 
             results["tests_performed"].append("introspection_query")
 
@@ -15565,7 +15565,7 @@ def graphql_scanner():
         # Test 2: Query depth analysis
         deep_query = "{ " * query_depth + "field" + " }" * query_depth
         command = f"curl -s -X POST -H 'Content-Type: application/json' -d '{{\"query\":\"{deep_query}\"}}' {endpoint}"
-        depth_result = execute_command(command, use_cache=False)
+        depth_result = execute_command_with_recovery("graphql_scanner", command, use_cache=False)
 
         results["tests_performed"].append("query_depth_analysis")
 
@@ -15579,7 +15579,7 @@ def graphql_scanner():
         # Test 3: Batch query testing
         batch_query = '[' + ','.join(['{\"query\":\"{field}\"}' for _ in range(10)]) + ']'
         command = f"curl -s -X POST -H 'Content-Type: application/json' -d '{batch_query}' {endpoint}"
-        batch_result = execute_command(command, use_cache=False)
+        batch_result = execute_command_with_recovery("graphql_scanner", command, use_cache=False)
 
         results["tests_performed"].append("batch_query_testing")
 
@@ -15709,7 +15709,7 @@ def jwt_analyzer():
                 none_token = f"{none_header}.{none_token_parts[1]}."
 
                 command = f"curl -s -H 'Authorization: Bearer {none_token}' '{target_url}'"
-                none_result = execute_command(command, use_cache=False)
+                none_result = execute_command_with_recovery("jwt_analyzer", command, use_cache=False)
 
                 if "200" in none_result.get("stdout", "") or "success" in none_result.get("stdout", "").lower():
                     results["vulnerabilities"].append({
@@ -15749,7 +15749,7 @@ def api_schema_analyzer():
 
         # Fetch schema
         command = f"curl -s '{schema_url}'"
-        result = execute_command(command, use_cache=True)
+        result = execute_command_with_recovery("api_schema_analyzer", command, use_cache=True)
 
         if not result.get("success"):
             return jsonify({
@@ -15874,7 +15874,7 @@ def volatility3():
             command += f" {additional_args}"
 
         logger.info(f"🧠 Starting Volatility3 analysis: {plugin}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("volatility3", command)
         logger.info(f"📊 Volatility3 analysis completed")
         return jsonify(result)
     except Exception as e:
@@ -15913,7 +15913,7 @@ def foremost():
         command += f" {input_file}"
 
         logger.info(f"📁 Starting Foremost file carving: {input_file}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("foremost", command)
         result["output_directory"] = output_dir
         logger.info(f"📊 Foremost carving completed")
         return jsonify(result)
@@ -15963,7 +15963,7 @@ def steghide():
             command += f" {additional_args}"
 
         logger.info(f"🖼️ Starting Steghide {action}: {cover_file}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("steghide", command)
         logger.info(f"📊 Steghide {action} completed")
         return jsonify(result)
     except Exception as e:
@@ -16002,7 +16002,7 @@ def exiftool():
         command += f" {file_path}"
 
         logger.info(f"📷 Starting ExifTool analysis: {file_path}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("exiftool", command)
         logger.info(f"📊 ExifTool analysis completed")
         return jsonify(result)
     except Exception as e:
@@ -16034,7 +16034,7 @@ def hashpump():
             command += f" {additional_args}"
 
         logger.info(f"🔐 Starting HashPump attack")
-        result = execute_command(command)
+        result = execute_command_with_recovery("hashpump", command)
         logger.info(f"📊 HashPump attack completed")
         return jsonify(result)
     except Exception as e:
@@ -16091,7 +16091,7 @@ def hakrawler():
             command += f" {additional_args}"
 
         logger.info(f"🕷️ Starting Hakrawler crawling: {url}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("hakrawler", command)
         logger.info(f"📊 Hakrawler crawling completed")
         return jsonify(result)
     except Exception as e:
@@ -17924,7 +17924,7 @@ def pius():
             command += f" {additional_args}"
 
         logger.info(f"🔍 Starting PIUS attack surface discovery: {org}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("pius", command)
         logger.info(f"📊 PIUS discovery completed for {org}")
         return jsonify(result)
     except Exception as e:
@@ -17972,12 +17972,225 @@ def electronegativity():
             command += f" {additional_args}"
 
         logger.info(f"⚡ Starting Electronegativity scan: {input_path}")
-        result = execute_command(command)
+        result = execute_command_with_recovery("electronegativity", command)
         logger.info(f"📊 Electronegativity scan completed for {input_path}")
         return jsonify(result)
 
     except Exception as e:
         logger.error(f"💥 Error in electronegativity endpoint: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+# ============================================================================
+# GRAPHIFY — KNOWLEDGE GRAPH & TOKEN OPTIMIZATION ENDPOINTS
+# ============================================================================
+
+GRAPHIFY_BIN = shlex.quote(str(Path.home() / ".local" / "bin" / "graphify"))
+
+@app.route("/api/tools/graphify_build", methods=["POST"])
+def graphify_build():
+    """Build a Graphify knowledge graph from a local path (no LLM, tree-sitter AST only)."""
+    try:
+        params = request.json
+        path = params.get("path", ".")
+        mode = params.get("mode", "")          # "", "deep"
+        no_cluster = params.get("no_cluster", False)
+        force = params.get("force", False)
+
+        if not path:
+            return jsonify({"error": "path parameter is required"}), 400
+
+        command = f"{GRAPHIFY_BIN} {shlex.quote(path)}"
+        if mode:
+            command += f" --mode {shlex.quote(mode)}"
+        if no_cluster:
+            command += " --no-cluster"
+        if force:
+            command += " --force"
+
+        logger.info(f"🕸️  Graphify build started: {path}")
+        result = execute_command_with_recovery("graphify_build", command, use_cache=False)
+        logger.info(f"📊 Graphify build completed for {path}")
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"💥 Error in graphify_build: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+
+@app.route("/api/tools/graphify_update", methods=["POST"])
+def graphify_update():
+    """Incrementally update an existing Graphify knowledge graph (re-extract changed files)."""
+    try:
+        params = request.json
+        path = params.get("path", ".")
+        force = params.get("force", False)
+
+        command = f"{GRAPHIFY_BIN} update {shlex.quote(path)}"
+        if force:
+            command += " --force"
+
+        logger.info(f"🔄 Graphify update: {path}")
+        result = execute_command_with_recovery("graphify_update", command, use_cache=False)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"💥 Error in graphify_update: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+
+@app.route("/api/tools/graphify_query", methods=["POST"])
+def graphify_query():
+    """Query a Graphify knowledge graph with a natural-language question."""
+    try:
+        params = request.json
+        question = params.get("question", "")
+        graph_path = params.get("graph_path", "")
+
+        if not question:
+            return jsonify({"error": "question parameter is required"}), 400
+
+        command = f"{GRAPHIFY_BIN} query {shlex.quote(question)}"
+        if graph_path:
+            command += f" --graph {shlex.quote(graph_path)}"
+
+        logger.info(f"🔍 Graphify query: {question[:80]}")
+        result = execute_command_with_recovery("graphify_query", command)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"💥 Error in graphify_query: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+
+@app.route("/api/tools/graphify_path", methods=["POST"])
+def graphify_path():
+    """Find the shortest relationship path between two nodes in the knowledge graph."""
+    try:
+        params = request.json
+        node_a = params.get("node_a", "")
+        node_b = params.get("node_b", "")
+        graph_path = params.get("graph_path", "")
+
+        if not node_a or not node_b:
+            return jsonify({"error": "node_a and node_b are required"}), 400
+
+        command = f"{GRAPHIFY_BIN} path {shlex.quote(node_a)} {shlex.quote(node_b)}"
+        if graph_path:
+            command += f" --graph {shlex.quote(graph_path)}"
+
+        logger.info(f"🛤️  Graphify path: {node_a} → {node_b}")
+        result = execute_command_with_recovery("graphify_path", command)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"💥 Error in graphify_path: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+
+@app.route("/api/tools/graphify_explain", methods=["POST"])
+def graphify_explain():
+    """Get a plain-language explanation of a node and its relationships."""
+    try:
+        params = request.json
+        node = params.get("node", "")
+        graph_path = params.get("graph_path", "")
+
+        if not node:
+            return jsonify({"error": "node parameter is required"}), 400
+
+        command = f"{GRAPHIFY_BIN} explain {shlex.quote(node)}"
+        if graph_path:
+            command += f" --graph {shlex.quote(graph_path)}"
+
+        logger.info(f"💡 Graphify explain: {node}")
+        result = execute_command_with_recovery("graphify_explain", command)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"💥 Error in graphify_explain: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+
+@app.route("/api/tools/graphify_benchmark", methods=["POST"])
+def graphify_benchmark():
+    """Measure token reduction vs naive full-corpus loading for a built graph."""
+    try:
+        params = request.json
+        graph_path = params.get("graph_path", "graphify-out/graph.json")
+
+        command = f"{GRAPHIFY_BIN} benchmark {shlex.quote(graph_path)}"
+
+        logger.info(f"📏 Graphify benchmark: {graph_path}")
+        result = execute_command_with_recovery("graphify_benchmark", command)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"💥 Error in graphify_benchmark: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+# ============================================================================
+# APIHARVESTER — OWASP API Top 10 Black-Box Attack Automation
+# ============================================================================
+
+APIHARVESTER_DIR = Path(__file__).parent / "tools" / "apiharvester"
+APIHARVESTER_PYTHON = Path(__file__).parent / "aegis-360-env" / "bin" / "python3"
+
+@app.route("/api/tools/apiharvester", methods=["POST"])
+def apiharvester():
+    """Run APIHarvester OWASP API Top 10 black-box attack automation against a target domain."""
+    try:
+        params = request.json
+        target = params.get("target", "")
+        if not target:
+            return jsonify({"error": "target parameter is required (root domain to scan)"}), 400
+
+        if not APIHARVESTER_DIR.exists():
+            return jsonify({"error": f"APIHarvester not found at {APIHARVESTER_DIR}"}), 500
+
+        cmd = f"{shlex.quote(str(APIHARVESTER_PYTHON))} -m apiharvester {shlex.quote(target)}"
+
+        auth        = params.get("auth", "")
+        auth2       = params.get("auth2", "")
+        attacks     = params.get("attacks", "")
+        threads     = params.get("threads", 0)
+        timeout_sec = params.get("timeout", 0)
+        burst       = params.get("burst", 0)
+        waf_bypass  = params.get("waf_bypass", False)
+        skip_recon  = params.get("skip_recon", False)
+        attacks_only = params.get("attacks_only", False)
+        recon_dir   = params.get("recon_dir", "")
+        output_dir  = params.get("output_dir", "")
+        json_report = params.get("json_report", "")
+        html_report = params.get("html_report", "")
+
+        if auth:
+            cmd += f" --auth {shlex.quote(auth)}"
+        if auth2:
+            cmd += f" --auth2 {shlex.quote(auth2)}"
+        if attacks:
+            cmd += f" --attacks {shlex.quote(attacks)}"
+        if threads:
+            cmd += f" --threads {int(threads)}"
+        if timeout_sec:
+            cmd += f" --timeout {int(timeout_sec)}"
+        if burst:
+            cmd += f" --burst {int(burst)}"
+        if waf_bypass:
+            cmd += " --waf-bypass"
+        if skip_recon:
+            cmd += " --skip-recon"
+        if attacks_only:
+            cmd += " --attacks-only"
+        if recon_dir:
+            cmd += f" --recon-dir {shlex.quote(recon_dir)}"
+        if output_dir:
+            cmd += f" --output-dir {shlex.quote(output_dir)}"
+        if json_report:
+            cmd += f" --json {shlex.quote(json_report)}"
+        if html_report:
+            cmd += f" --html {shlex.quote(html_report)}"
+
+        logger.info(f"🌾 APIHarvester scan started: {target}")
+        result = execute_command(cmd, use_cache=False)
+        logger.info(f"📊 APIHarvester scan completed for {target}")
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"💥 Error in apiharvester endpoint: {str(e)}")
         return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 # ============================================================================
