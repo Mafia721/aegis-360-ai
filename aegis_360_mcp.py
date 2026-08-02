@@ -49,6 +49,10 @@ GRAPHQLMAP_BIN  = Path(__file__).parent / "aegis-360-env" / "bin" / "graphqlmap"
 CLAIRVOYANCE_BIN = Path(__file__).parent / "aegis-360-env" / "bin" / "clairvoyance"
 APIHARVESTER_DIR = Path(__file__).parent / "tools" / "apiharvester"
 
+# ClawStrike v2 — AI Agent Security Harness
+CLAWSTRIKE_BIN = Path(__file__).parent / "aegis-360-env" / "bin" / "clawstrike"
+CLAWSTRIKE_DIR = Path.home() / "clawstrike-v2"
+
 # Burp Suite Professional integration
 BURP_PROXY_HOST = "127.0.0.1"
 BURP_PROXY_PORT = 8080
@@ -13582,6 +13586,483 @@ session.fuzz()
             return {"success": False, "error": "apiharvester timed out after 600s", "target": target}
         except Exception as exc:
             return {"success": False, "error": str(exc), "target": target}
+
+    # ============================================================================
+    # STRIX-PORTED TOOLS
+    # ============================================================================
+
+    @mcp.tool()
+    def playwright_browser(
+        url: str,
+        steps: list = None,
+        extract: list = None,
+        headless: bool = True,
+        proxy_host: str = "",
+        proxy_port: int = 0,
+        timeout_ms: int = 15000,
+    ) -> Dict[str, Any]:
+        """
+        Multi-step Playwright browser automation for testing JS-heavy apps, auth flows,
+        and session/cookie manipulation — complements the existing Selenium browser_agent_inspect
+        with scripted multi-step interaction.
+
+        Args:
+            url: Starting URL.
+            steps: Ordered list of interaction steps. Each step is a dict with keys:
+                   type (fill|click|navigate|wait_for|screenshot|eval|select|check|press),
+                   selector (CSS/XPath), value (text to fill or JS expression for eval),
+                   timeout_ms (per-step override).
+                   Examples:
+                     [{"type":"fill","selector":"#email","value":"test@test.com"},
+                      {"type":"click","selector":"button[type=submit]"},
+                      {"type":"eval","value":"document.cookie"}]
+            extract: List of items to extract after steps complete.
+                     Options: title, url, cookies, storage, html, console, screenshot, network.
+            headless: Run headless Chromium (default true).
+            proxy_host: Intercept via proxy (e.g. 127.0.0.1 for Burp).
+            proxy_port: Proxy port (e.g. 8080).
+            timeout_ms: Default step timeout in milliseconds.
+
+        Returns:
+            steps_executed, steps_failed, extractions dict with requested data.
+        """
+        payload = {
+            "url": url,
+            "steps": steps or [],
+            "extract": extract or ["title", "cookies", "console"],
+            "headless": headless,
+            "proxy_host": proxy_host,
+            "proxy_port": proxy_port,
+            "timeout_ms": timeout_ms,
+        }
+        logger.info(f"{Aegis360Colors.CRIMSON}🎭 Playwright browser: {url} ({len(steps or [])} steps){Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/tools/playwright-browser", payload)
+        if result.get("success"):
+            failed = result.get("steps_failed", 0)
+            total = result.get("steps_executed_count", 0)
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ Playwright: {total} steps, {failed} failed{Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ Playwright browser failed: {result.get('error','')}{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def semgrep_sast_scan(
+        path: str,
+        ruleset: str = "p/owasp-top-ten",
+        language: str = "",
+        severity: str = "",
+        timeout: int = 120,
+        max_findings: int = 200,
+    ) -> Dict[str, Any]:
+        """
+        Semgrep SAST scan against a local source directory using security rulesets.
+        Use this for white-box source code review; use git_diff_vuln_scan for PR gates.
+
+        Args:
+            path: Absolute path to the directory or file to scan.
+            ruleset: Semgrep ruleset. Common values:
+                     p/owasp-top-ten (default), p/security-audit, p/secrets,
+                     p/python, p/javascript, p/typescript, p/java, auto.
+            language: Optional language hint (python, javascript, typescript, java, go, etc.).
+            severity: Filter by severity: ERROR, WARNING, INFO (comma-separated or single).
+            timeout: Max seconds to allow Semgrep to run.
+            max_findings: Cap returned findings.
+
+        Returns:
+            total_findings, severity_counts, findings list (each with path, line, rule_id,
+            message, severity, fix suggestion).
+        """
+        payload = {
+            "path": path,
+            "ruleset": ruleset,
+            "language": language,
+            "severity": severity,
+            "timeout": timeout,
+            "max_findings": max_findings,
+        }
+        logger.info(f"{Aegis360Colors.CRIMSON}🔍 Semgrep SAST: {path} [{ruleset}]{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/tools/semgrep-sast", payload)
+        if result.get("success"):
+            n = result.get("total_findings", 0)
+            sev = result.get("severity_counts", {})
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ Semgrep: {n} findings {sev}{Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ Semgrep SAST failed: {result.get('error','')}{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def git_diff_vuln_scan(
+        repo_path: str,
+        base_ref: str = "HEAD~1",
+        head_ref: str = "HEAD",
+        ruleset: str = "p/owasp-top-ten",
+        timeout: int = 180,
+        max_findings: int = 200,
+    ) -> Dict[str, Any]:
+        """
+        Diff-scoped Semgrep vulnerability scan — runs SAST only on files changed between
+        two git refs (pull-request gate mode). Equivalent to Strix's Diff-Based Scanning.
+
+        Args:
+            repo_path: Absolute path to the git repository root.
+            base_ref: Base git ref to diff against (branch name, commit hash, or HEAD~N).
+            head_ref: Head git ref to scan (default HEAD).
+            ruleset: Semgrep ruleset (same options as semgrep_sast_scan).
+            timeout: Max seconds for Semgrep.
+            max_findings: Cap returned findings.
+
+        Returns:
+            changed_files_count, changed_files list, total_findings, severity_counts,
+            findings list scoped to changed files only.
+        """
+        payload = {
+            "repo_path": repo_path,
+            "base_ref": base_ref,
+            "head_ref": head_ref,
+            "ruleset": ruleset,
+            "timeout": timeout,
+            "max_findings": max_findings,
+        }
+        logger.info(f"{Aegis360Colors.CRIMSON}🔀 Git diff scan: {repo_path} ({base_ref}..{head_ref}){Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/tools/git-diff-scan", payload)
+        if result.get("success"):
+            n = result.get("total_findings", 0)
+            fc = result.get("changed_files_count", 0)
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ Diff scan: {n} findings in {fc} changed files{Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ Git diff scan failed: {result.get('error','')}{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def framework_security_agent(
+        path: str,
+        framework: str = "auto",
+        timeout: int = 60,
+    ) -> Dict[str, Any]:
+        """
+        Framework-specific automated security checks. Detects (or accepts) the web framework
+        and runs targeted grep-based checks for that framework's known misconfigurations
+        and vulnerability patterns. Supports: django, nextjs, firebase, auth0, supabase,
+        fastapi, express (pass 'auto' to detect from file signals).
+
+        Args:
+            path: Absolute path to the project/source directory.
+            framework: Framework to check. Use 'auto' (default) for auto-detection, or specify
+                       one of: django, nextjs, firebase, auth0, supabase, fastapi, express.
+            timeout: Per-check timeout in seconds.
+
+        Returns:
+            framework (detected or specified), checks_run, findings_count, severity_counts,
+            findings list (each with check name, severity, matched output).
+
+        Example findings:
+            django/debug_mode — DEBUG=True in settings
+            nextjs/env_leaked_to_client — NEXT_PUBLIC_ secret exposure
+            firebase/rules_allow_all — open Firestore/Storage rules
+            auth0/algorithm_none — JWT algorithm=none acceptance
+            supabase/service_role_key — service_role key in client-side code
+            fastapi/cors_allow_all — CORS allow_origins=["*"] without auth check
+        """
+        payload = {
+            "path": path,
+            "framework": framework,
+            "timeout": timeout,
+        }
+        logger.info(f"{Aegis360Colors.CRIMSON}🏗️  Framework security [{framework}]: {path}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/tools/framework-security", payload)
+        if result.get("success"):
+            n = result.get("findings_count", 0)
+            fw = result.get("framework", framework)
+            logger.info(f"{Aegis360Colors.SUCCESS}✅ Framework security ({fw}): {n} findings{Aegis360Colors.RESET}")
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}❌ Framework security failed: {result.get('error','')}{Aegis360Colors.RESET}")
+        return result
+
+    # ── ClawStrike v2 — AI Agent Security Harness ────────────────────────────
+    # Pentests AI agents and agentic applications (chatbots, tool-using
+    # assistants, multi-agent systems) across 7 OWASP ASI attack categories.
+    # Installed at: ~/clawstrike-v2/   binary: aegis-360-env/bin/clawstrike
+    # All tools run with cwd=CLAWSTRIKE_DIR so config.yaml + .env are found.
+
+    def _clawstrike_run(args: List[str], timeout: int = 600) -> Dict[str, Any]:
+        """Run clawstrike CLI with given args, return structured result."""
+        if not CLAWSTRIKE_BIN.exists():
+            return {"success": False, "error": f"clawstrike not found at {CLAWSTRIKE_BIN}"}
+        cmd = [str(CLAWSTRIKE_BIN)] + args
+        logger.info(f"{Aegis360Colors.HACKER_RED}🦅 ClawStrike: {' '.join(args[:4])}{Aegis360Colors.RESET}")
+        try:
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=str(CLAWSTRIKE_DIR),
+            )
+            stdout = proc.stdout.strip()
+            stderr = proc.stderr.strip()
+            success = proc.returncode == 0
+            if success:
+                logger.info(f"{Aegis360Colors.SUCCESS}✅ ClawStrike finished (rc=0){Aegis360Colors.RESET}")
+            else:
+                logger.error(f"{Aegis360Colors.ERROR}❌ ClawStrike rc={proc.returncode}{Aegis360Colors.RESET}")
+            return {
+                "success": success,
+                "returncode": proc.returncode,
+                "stdout": stdout,
+                "stderr": stderr,
+                "command": " ".join(cmd),
+            }
+        except subprocess.TimeoutExpired:
+            logger.error(f"{Aegis360Colors.ERROR}⏰ ClawStrike timed out after {timeout}s{Aegis360Colors.RESET}")
+            return {"success": False, "error": f"ClawStrike timed out after {timeout}s"}
+        except Exception as exc:
+            logger.error(f"{Aegis360Colors.ERROR}💥 ClawStrike error: {exc}{Aegis360Colors.RESET}")
+            return {"success": False, "error": str(exc)}
+
+    @mcp.tool()
+    def clawstrike_test(
+        target: str,
+        module: str,
+        payload: str = "",
+        runs: int = 1,
+        delay: float = 1.5,
+        target_shape: str = "openai",
+        cookie: str = "",
+        csrf_url: str = "",
+        csrf_header: str = "X-CSRF-Token",
+        payload_mode: str = "static",
+        mutations: int = 3,
+        force_capabilities: str = "",
+        scope_doc: str = "",
+        chrome_headers: bool = False,
+        max_cost_usd: float = 0.0,
+        timeout: int = 600,
+    ) -> Dict[str, Any]:
+        """
+        Run a single ClawStrike attack module against a target AI agent.
+
+        ClawStrike tests chatbots, tool-using assistants, and multi-agent
+        systems for OWASP ASI security weaknesses that classic pentesting
+        tools miss.
+
+        Args:
+            target: Target agent chat endpoint URL (e.g. https://ctf.arkx.ninja/api/levels/5/chat)
+            module: Attack module id. One of: planning_injection, tool_abuse,
+                    identity_abuse, mcp_supply_chain, memory_poisoning,
+                    a2a_trust, trust_exploitation
+            payload: Run a single named payload from the module catalog (default: all payloads)
+            runs: Repeat each payload N times for non-determinism sweep (default: 1)
+            delay: Seconds between attempts (default: 1.5)
+            target_shape: Request/response shape — openai | simple | sse-openai | sse-simple
+            cookie: Session cookie string, e.g. 'session_id=abc123'
+            csrf_url: Dashboard URL to fetch a CSRF token from before each request
+            csrf_header: Header name for the CSRF token (default: X-CSRF-Token)
+            payload_mode: static (catalog only) or adaptive (recon-targeted + fuzzed)
+            mutations: Mutations per static payload when payload_mode=adaptive (default: 3)
+            force_capabilities: Comma-separated capabilities to assume instead of probing
+            scope_doc: Path to signed scope/authorization YAML (required for non-lab targets)
+            chrome_headers: Send realistic Chrome browser headers
+            max_cost_usd: Stop once estimated judge cost reaches this USD amount
+            timeout: Subprocess timeout in seconds (default: 600)
+
+        Returns:
+            Dict with success, stdout (full ClawStrike output + findings), stderr, returncode
+        """
+        args = ["test", "--target", target, "--module", module]
+        if payload:
+            args += ["--payload", payload]
+        if runs > 1:
+            args += ["--runs", str(runs)]
+        if delay != 1.5:
+            args += ["--delay", str(delay)]
+        if target_shape != "openai":
+            args += ["--target-shape", target_shape]
+        if cookie:
+            args += ["--cookie", cookie]
+        if csrf_url:
+            args += ["--csrf-url", csrf_url, "--csrf-header", csrf_header]
+        if payload_mode != "static":
+            args += ["--payload-mode", payload_mode, "--mutations", str(mutations)]
+        if force_capabilities:
+            args += ["--force-capabilities", force_capabilities]
+        if scope_doc:
+            args += ["--scope-doc", scope_doc]
+        if chrome_headers:
+            args.append("--chrome-headers")
+        if max_cost_usd > 0:
+            args += ["--max-cost-usd", str(max_cost_usd)]
+        logger.info(f"{Aegis360Colors.HACKER_RED}🦅 clawstrike test | module={module} | target={target}{Aegis360Colors.RESET}")
+        return _clawstrike_run(args, timeout=timeout)
+
+    @mcp.tool()
+    def clawstrike_multi_test(
+        target: str,
+        modules: str,
+        max_total_calls: int = 100,
+        max_cost_usd: float = 10.0,
+        delay: float = 1.5,
+        target_shape: str = "openai",
+        cookie: str = "",
+        csrf_url: str = "",
+        csrf_header: str = "X-CSRF-Token",
+        force_capabilities: str = "",
+        scope_doc: str = "",
+        chrome_headers: bool = False,
+        timeout: int = 1200,
+    ) -> Dict[str, Any]:
+        """
+        Run multiple ClawStrike attack modules against one target in a single engagement.
+
+        Runs modules sequentially under one engagement_id. Fully non-interactive —
+        safe for unattended/remote-monitored runs. Hard safety ceilings on cost and
+        call count prevent runaway engagements.
+
+        Args:
+            target: Target agent chat endpoint URL
+            modules: Comma-separated attack module ids, e.g.
+                     'planning_injection,tool_abuse,memory_poisoning'
+                     Available: planning_injection, tool_abuse, identity_abuse,
+                     mcp_supply_chain, memory_poisoning, a2a_trust, trust_exploitation
+            max_total_calls: Stop once this many total model calls are made (default: 100)
+            max_cost_usd: Stop once estimated judge cost reaches this USD amount (default: 10.0)
+            delay: Seconds between attempts (default: 1.5)
+            target_shape: Request/response shape — openai | simple | sse-openai | sse-simple
+            cookie: Session cookie string, e.g. 'session_id=abc123'
+            csrf_url: Dashboard URL to fetch a CSRF token from before each request
+            csrf_header: Header name for the CSRF token (default: X-CSRF-Token)
+            force_capabilities: Comma-separated capabilities to assume instead of probing
+            scope_doc: Path to signed scope/authorization YAML (required for non-lab targets)
+            chrome_headers: Send realistic Chrome browser headers
+            timeout: Subprocess timeout in seconds (default: 1200)
+
+        Returns:
+            Dict with success, stdout (full engagement output + all findings), stderr, returncode
+        """
+        args = [
+            "multi-test",
+            "--target", target,
+            "--modules", modules,
+            "--max-total-calls", str(max_total_calls),
+            "--max-cost-usd", str(max_cost_usd),
+            "--delay", str(delay),
+        ]
+        if target_shape != "openai":
+            args += ["--target-shape", target_shape]
+        if cookie:
+            args += ["--cookie", cookie]
+        if csrf_url:
+            args += ["--csrf-url", csrf_url, "--csrf-header", csrf_header]
+        if force_capabilities:
+            args += ["--force-capabilities", force_capabilities]
+        if scope_doc:
+            args += ["--scope-doc", scope_doc]
+        if chrome_headers:
+            args.append("--chrome-headers")
+        logger.info(f"{Aegis360Colors.HACKER_RED}🦅 clawstrike multi-test | modules={modules} | target={target}{Aegis360Colors.RESET}")
+        return _clawstrike_run(args, timeout=timeout)
+
+    @mcp.tool()
+    def clawstrike_report(
+        engagement_id: str,
+        output_file: str = "",
+        timeout: int = 120,
+    ) -> Dict[str, Any]:
+        """
+        Generate a Markdown pentest report from a ClawStrike engagement's event log.
+
+        Report includes: header (target/date/model/modules), summary (findings by
+        severity, modules run vs skipped), per-finding sections (title/severity/ASI
+        mapping/description/reproduction steps/payload+response evidence/recommendation),
+        and engagement metadata footer (calls/cost/duration).
+
+        Args:
+            engagement_id: Engagement ID from a previous clawstrike_test or
+                           clawstrike_multi_test run (shown in that tool's stdout)
+            output_file: Optional path to write the Markdown report to
+                         (default: prints to stdout)
+            timeout: Subprocess timeout in seconds (default: 120)
+
+        Returns:
+            Dict with success and stdout containing the full Markdown report
+        """
+        args = ["report", "--engagement", engagement_id]
+        if output_file:
+            args += ["--output", output_file]
+        logger.info(f"{Aegis360Colors.HACKER_RED}🦅 clawstrike report | engagement={engagement_id}{Aegis360Colors.RESET}")
+        return _clawstrike_run(args, timeout=timeout)
+
+    @mcp.tool()
+    def clawstrike_modules_list(
+        format: str = "table",
+    ) -> Dict[str, Any]:
+        """
+        List all registered ClawStrike attack modules with their ASI category mappings.
+
+        Shows module id, name, OWASP ASI category, required target capabilities,
+        and number of payloads in the catalog.
+
+        Args:
+            format: Output format — table | json (default: table)
+
+        Returns:
+            Dict with success and stdout listing all available modules
+        """
+        args = ["modules", "list"]
+        if format != "table":
+            args += ["--format", format]
+        logger.info(f"{Aegis360Colors.HACKER_RED}🦅 clawstrike modules list{Aegis360Colors.RESET}")
+        return _clawstrike_run(args, timeout=30)
+
+    @mcp.tool()
+    def clawstrike_cortex(
+        engagement_id: str,
+        cortex_command: str = "root-cause",
+        finding_id: str = "",
+        module: str = "",
+        engagement_b: str = "",
+        timeout: int = 300,
+    ) -> Dict[str, Any]:
+        """
+        Reasoning-trace replay and root-cause analysis for a ClawStrike engagement.
+
+        Cortex replays engagement traces, diffs payloads across runs, and synthesizes
+        LLM-powered root-cause analysis explaining WHY a vulnerability exists in the
+        target agent's design.
+
+        Args:
+            engagement_id: Engagement ID to analyze
+            cortex_command: Sub-command — root-cause | replay | diff | diff-runs
+                root-cause: LLM-synthesized root-cause analysis for a specific finding
+                replay:     Step-by-step replay of all events in the engagement
+                diff:       Diff payload outcomes between two runs of the same module
+                diff-runs:  Diff two full engagements against each other
+            finding_id: Finding ID for root-cause analysis (required when cortex_command=root-cause)
+            module: Module id for diff sub-command (required when cortex_command=diff or diff-runs)
+            engagement_b: Second engagement ID (required when cortex_command=diff-runs)
+            timeout: Subprocess timeout in seconds (default: 300)
+
+        Returns:
+            Dict with success and stdout containing the analysis or replay output
+        """
+        if cortex_command == "root-cause":
+            if not finding_id:
+                return {"success": False, "error": "finding_id is required for cortex root-cause"}
+            args = ["cortex", "root-cause", "--finding", finding_id, "--engagement", engagement_id]
+        elif cortex_command == "replay":
+            args = ["cortex", "replay", "--engagement", engagement_id]
+        elif cortex_command == "diff":
+            if not module:
+                return {"success": False, "error": "module is required for cortex diff"}
+            args = ["cortex", "diff", "--engagement", engagement_id, "--module", module]
+        elif cortex_command == "diff-runs":
+            if not engagement_b or not module:
+                return {"success": False, "error": "engagement_b and module are required for cortex diff-runs"}
+            args = ["cortex", "diff-runs", "--engagement-a", engagement_id,
+                    "--engagement-b", engagement_b, "--module", module]
+        else:
+            return {"success": False, "error": f"Unknown cortex_command: {cortex_command}"}
+        logger.info(f"{Aegis360Colors.HACKER_RED}🦅 clawstrike cortex {cortex_command} | engagement={engagement_id}{Aegis360Colors.RESET}")
+        return _clawstrike_run(args, timeout=timeout)
 
     return mcp
 
