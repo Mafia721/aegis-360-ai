@@ -1,9 +1,53 @@
-# Aegis-360 AI v1.1.0 — Tool Installation Reference
+# Aegis-360 AI v1.2.0 — Tool Installation Reference
 
-**Coverage:** 125/129 tools (96.9%) | **Last verified:** 2026-06-15  
+**Coverage:** 133/137 tools (97.1%) | **Last verified:** 2026-08-26  
 **Success rate:** 98.4% | **Server:** `http://127.0.0.1:8888`
 
 Run `install_sudo_tools.sh` to reproduce the full setup on a fresh Kali system.
+
+---
+
+## AWS Cloud Configuration Review Suite (added 2026-08-26)
+
+| Tool | Version | Install | MCP Endpoint |
+|------|---------|---------|-------------|
+| Prowler | 5.39.1 | `pipx install prowler` | `aws_prowler_scan` |
+| ScoutSuite | 5.14.0 | `pipx install scoutsuite` | `aws_scoutsuite_scan` |
+| Steampipe | 2.4.5 | `~/.local/bin/steampipe` | `aws_steampipe_query` |
+| Powerpipe | 1.5.3 | `~/.local/bin/powerpipe` | `aws_steampipe_compliance` |
+| steampipe-plugin-aws | 1.32.0 | `steampipe plugin install aws` | (used by Steampipe) |
+| steampipe-mod-aws-compliance | latest | `tools/steampipe-aws-compliance/` | `aws_steampipe_compliance` |
+| Cloudsplaining | 0.9.1 | `pipx install cloudsplaining` | `aws_cloudsplaining_scan` |
+| Pacu | 1.7.0 | `pipx install pacu` | `aws_pacu_module` |
+| AWS CLI v2 | 2.36.31 | `~/.local/bin/aws` | `aws_cli_run` |
+
+### API Endpoints (server must be running on :8888)
+
+```
+GET  /api/aws/tools-status          — check all tool versions
+POST /api/aws/prowler-scan          — Prowler v5 full account scan
+POST /api/aws/scoutsuite-scan       — ScoutSuite multi-cloud audit
+POST /api/aws/steampipe-query       — ad-hoc SQL against AWS plugin
+POST /api/aws/steampipe-compliance  — CIS/NIST/PCI/HIPAA benchmarks via Powerpipe
+POST /api/aws/cloudsplaining-scan   — IAM privilege risk analysis
+POST /api/aws/pacu-module           — Pacu enumeration/exploitation module
+POST /api/aws/cli                   — AWS CLI v2 wrapper (read-only safe)
+POST /api/aws/config-review         — Orchestrated review (Prowler + Cloudsplaining)
+```
+
+### Quick usage with MCP (Claude / Aegis-360 AI)
+
+```
+aws_tools_status()                              # verify everything is installed
+aws_cli_run("sts get-caller-identity")          # confirm credentials
+aws_prowler_scan(region="us-east-1",            # focused IAM+S3+CloudTrail scan
+                 services=["iam","s3","cloudtrail"])
+aws_cloudsplaining_scan(download_first=True)    # download + analyze IAM policies
+aws_steampipe_query(                            # find S3 buckets without versioning
+  "select name from aws_s3_bucket where versioning_enabled = false")
+aws_steampipe_compliance(benchmark="cis_v300")  # CIS AWS Foundations v3.0.0
+aws_config_review(region="us-east-1")           # full orchestrated review
+```
 
 ---
 
