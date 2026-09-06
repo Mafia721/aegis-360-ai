@@ -16,6 +16,8 @@ fastmcp>=0.2.0,<1.0.0           # MCP framework (from mcp.server.fastmcp import 
 anthropic>=0.40.0               # Claude API SDK for AI-powered analysis
 python-dotenv>=1.0.0            # Load API keys from .env file
 openai>=1.30.0                  # OpenAI-compatible SDK for Qwen3 via OpenRouter
+deepteam>=1.0.9                 # LLM red-teaming & adversarial safety testing (confident-ai/deepteam)
+sentry-sdk>=2.0.0               # Required by deepteam telemetry
 
 # ============================================================================
 # WEB SCRAPING & AUTOMATION (ACTUALLY USED)
@@ -23,6 +25,8 @@ openai>=1.30.0                  # OpenAI-compatible SDK for Qwen3 via OpenRouter
 beautifulsoup4>=4.12.0,<5.0.0   # HTML parsing (from bs4 import BeautifulSoup)
 selenium>=4.15.0,<5.0.0         # Browser automation (selenium imports)
 webdriver-manager>=4.0.0,<5.0.0 # ChromeDriver management (referenced in code)
+playwright>=1.40.0               # Multi-step browser automation (playwright_browser tool; run: playwright install chromium)
+semgrep>=1.50.0                  # SAST / git-diff vulnerability scanning (semgrep_sast_scan, git_diff_vuln_scan tools)
 
 # ============================================================================
 # ASYNC & NETWORKING (ACTUALLY USED)

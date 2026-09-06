@@ -73,6 +73,13 @@ except Exception:
     WebDriverException = Exception
 
 try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except Exception:
+    sync_playwright = None
+    PLAYWRIGHT_AVAILABLE = False
+
+try:
     import mitmproxy
     from mitmproxy import http as mitmhttp
     from mitmproxy.tools.dump import DumpMaster
@@ -157,8 +164,10 @@ app.config['JSON_SORT_KEYS'] = False
 # Register modular blueprints
 from modules.augustus import augustus_bp              # noqa: E402
 from modules.praetorian import praetorian_bp          # noqa: E402
+from modules.deepteam_integration import deepteam_bp  # noqa: E402
 app.register_blueprint(augustus_bp)
 app.register_blueprint(praetorian_bp)
+app.register_blueprint(deepteam_bp)
 
 # Multi-model orchestration engine (Claude Code → DeepSeek V4 Pro → Claude API)
 from aegis_360_orchestrator import orchestrator_bp  # noqa: E402
@@ -19855,6 +19864,1043 @@ def agent_tools():
     ]
     return jsonify({"tools": tools, "count": len(tools),
                     "timestamp": datetime.now().isoformat()})
+
+
+# ============================================================================
+# STRIX-PORTED TOOLS: playwright_browser, semgrep_sast_scan,
+#                     git_diff_vuln_scan, framework_security_agent
+# ============================================================================
+
+@app.route("/api/tools/playwright-browser", methods=["POST"])
+def playwright_browser():
+    """Multi-step Playwright browser automation for auth/session/JS-heavy app testing."""
+    try:
+        params = request.json
+        url = params.get("url", "")
+        steps = params.get("steps", [])          # list of {type, selector, value, timeout_ms}
+        extract = params.get("extract", ["title", "cookies", "console"])
+        headless = params.get("headless", True)
+        proxy_host = params.get("proxy_host", "")
+        proxy_port = params.get("proxy_port", 0)
+        timeout_ms = params.get("timeout_ms", 15000)
+
+        if not url:
+            return jsonify({"error": "url is required"}), 400
+
+        if not PLAYWRIGHT_AVAILABLE:
+            return jsonify({
+                "error": "playwright not installed — run: playwright install chromium",
+                "success": False
+            }), 503
+
+        launch_opts = {"headless": headless}
+        if proxy_host and proxy_port:
+            launch_opts["proxy"] = {"server": f"http://{proxy_host}:{proxy_port}"}
+
+        results = {"success": True, "url": url, "steps_executed": [], "extractions": {}}
+        console_msgs = []
+
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(**launch_opts)
+            ctx_opts = {}
+            page = browser.new_context(**ctx_opts).new_page()
+            page.set_default_timeout(timeout_ms)
+
+            if "console" in extract:
+                page.on("console", lambda msg: console_msgs.append(
+                    {"type": msg.type, "text": msg.text}
+                ))
+
+            page.goto(url, wait_until="domcontentloaded")
+
+            for i, step in enumerate(steps):
+                step_type = step.get("type", "")
+                selector = step.get("selector", "")
+                value = step.get("value", "")
+                step_result = {"index": i, "type": step_type, "selector": selector, "success": False}
+                try:
+                    if step_type == "fill":
+                        page.fill(selector, value)
+                        step_result["success"] = True
+                    elif step_type == "click":
+                        page.click(selector)
+                        step_result["success"] = True
+                    elif step_type == "navigate":
+                        page.goto(value or selector, wait_until="domcontentloaded")
+                        step_result["success"] = True
+                    elif step_type == "wait_for":
+                        page.wait_for_selector(selector)
+                        step_result["success"] = True
+                    elif step_type == "screenshot":
+                        path = f"/tmp/pw_step_{i}.png"
+                        page.screenshot(path=path)
+                        step_result["success"] = True
+                        step_result["screenshot_path"] = path
+                    elif step_type == "eval":
+                        step_result["result"] = page.evaluate(value)
+                        step_result["success"] = True
+                    elif step_type == "select":
+                        page.select_option(selector, value)
+                        step_result["success"] = True
+                    elif step_type == "check":
+                        page.check(selector)
+                        step_result["success"] = True
+                    elif step_type == "press":
+                        page.press(selector or "body", value)
+                        step_result["success"] = True
+                    else:
+                        step_result["error"] = f"unknown step type: {step_type}"
+                except Exception as e:
+                    step_result["error"] = str(e)
+                results["steps_executed"].append(step_result)
+
+            if "title" in extract:
+                results["extractions"]["title"] = page.title()
+            if "url" in extract:
+                results["extractions"]["current_url"] = page.url
+            if "cookies" in extract:
+                results["extractions"]["cookies"] = page.context.cookies()
+            if "storage" in extract:
+                results["extractions"]["local_storage"] = page.evaluate(
+                    "() => Object.entries(localStorage)"
+                )
+                results["extractions"]["session_storage"] = page.evaluate(
+                    "() => Object.entries(sessionStorage)"
+                )
+            if "html" in extract:
+                results["extractions"]["html"] = page.content()[:50000]
+            if "console" in extract:
+                results["extractions"]["console"] = console_msgs
+            if "screenshot" in extract:
+                path = "/tmp/pw_final.png"
+                page.screenshot(path=path)
+                results["extractions"]["screenshot_path"] = path
+            if "network" in extract:
+                # JS eval to get performance entries (requests)
+                entries = page.evaluate(
+                    "() => performance.getEntriesByType('resource').map(e => ({name: e.name, duration: e.duration, transferSize: e.transferSize}))"
+                )
+                results["extractions"]["network_resources"] = entries[:100]
+
+            browser.close()
+
+        results["steps_executed_count"] = len(results["steps_executed"])
+        failed = [s for s in results["steps_executed"] if not s["success"]]
+        results["steps_failed"] = len(failed)
+        logger.info(f"🎭 Playwright: {url} — {len(results['steps_executed'])} steps, {len(failed)} failed")
+        return jsonify(results)
+
+    except Exception as exc:
+        logger.error(f"💥 playwright_browser error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/tools/semgrep-sast", methods=["POST"])
+def semgrep_sast():
+    """Semgrep SAST scan against a local directory with security rulesets."""
+    try:
+        params = request.json
+        path = params.get("path", "")
+        ruleset = params.get("ruleset", "p/owasp-top-ten")
+        language = params.get("language", "")
+        severity_filter = params.get("severity", "")   # ERROR,WARNING,INFO
+        timeout = params.get("timeout", 120)
+        max_findings = params.get("max_findings", 200)
+
+        if not path:
+            return jsonify({"error": "path is required"}), 400
+        if not os.path.exists(path):
+            return jsonify({"error": f"path does not exist: {path}"}), 400
+
+        cmd = ["semgrep", "--config", ruleset, "--json", "--no-git-ignore"]
+        if language:
+            cmd += ["--lang", language]
+        if severity_filter:
+            cmd += ["--severity", severity_filter]
+        cmd.append(path)
+
+        logger.info(f"🔍 Semgrep SAST: {path} ruleset={ruleset}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        except FileNotFoundError:
+            return jsonify({
+                "success": False,
+                "error": "semgrep not found — run: pip install semgrep"
+            }), 503
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "error": f"semgrep timed out after {timeout}s"}), 504
+
+        try:
+            data = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            data = {"raw_output": proc.stdout[:10000], "stderr": proc.stderr[:2000]}
+            return jsonify({"success": False, "error": "semgrep output parse failed", "data": data}), 500
+
+        findings = data.get("results", [])[:max_findings]
+        errors = data.get("errors", [])
+
+        severity_counts = {}
+        for f in findings:
+            sev = f.get("extra", {}).get("severity", "unknown").upper()
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+        result = {
+            "success": True,
+            "path": path,
+            "ruleset": ruleset,
+            "total_findings": len(findings),
+            "severity_counts": severity_counts,
+            "findings": findings,
+            "errors": errors[:20],
+            "semgrep_version": proc.stdout[:5] if proc.returncode == 2 else "",
+        }
+        logger.info(f"📊 Semgrep SAST complete: {len(findings)} findings in {path}")
+        return jsonify(result)
+
+    except Exception as exc:
+        logger.error(f"💥 semgrep_sast error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/tools/git-diff-scan", methods=["POST"])
+def git_diff_scan():
+    """Semgrep scan scoped to only the files/lines changed in a git diff (PR gate mode)."""
+    try:
+        params = request.json
+        repo_path = params.get("repo_path", "")
+        base_ref = params.get("base_ref", "HEAD~1")
+        head_ref = params.get("head_ref", "HEAD")
+        ruleset = params.get("ruleset", "p/owasp-top-ten")
+        timeout = params.get("timeout", 180)
+        max_findings = params.get("max_findings", 200)
+
+        if not repo_path:
+            return jsonify({"error": "repo_path is required"}), 400
+        if not os.path.exists(repo_path):
+            return jsonify({"error": f"repo_path does not exist: {repo_path}"}), 400
+
+        # Get changed files from git diff
+        diff_cmd = ["git", "-C", repo_path, "diff", "--name-only", base_ref, head_ref]
+        diff_proc = subprocess.run(diff_cmd, capture_output=True, text=True, timeout=30)
+        if diff_proc.returncode != 0:
+            return jsonify({
+                "success": False,
+                "error": f"git diff failed: {diff_proc.stderr[:500]}"
+            }), 400
+
+        changed_files = [
+            os.path.join(repo_path, f.strip())
+            for f in diff_proc.stdout.splitlines()
+            if f.strip() and os.path.exists(os.path.join(repo_path, f.strip()))
+        ]
+
+        if not changed_files:
+            return jsonify({
+                "success": True,
+                "message": "No changed files found in diff",
+                "base_ref": base_ref,
+                "head_ref": head_ref,
+                "total_findings": 0,
+                "findings": []
+            })
+
+        logger.info(f"🔀 Git diff scan: {len(changed_files)} changed files ({base_ref}..{head_ref})")
+
+        cmd = ["semgrep", "--config", ruleset, "--json", "--no-git-ignore"] + changed_files
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        except FileNotFoundError:
+            return jsonify({
+                "success": False,
+                "error": "semgrep not found — run: pip install semgrep"
+            }), 503
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "error": f"semgrep timed out after {timeout}s"}), 504
+
+        try:
+            data = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return jsonify({
+                "success": False,
+                "error": "semgrep output parse failed",
+                "raw": proc.stdout[:5000]
+            }), 500
+
+        # Filter to findings whose file is in the diff
+        changed_set = set(changed_files)
+        findings = [
+            f for f in data.get("results", [])
+            if f.get("path") in changed_set
+        ][:max_findings]
+
+        severity_counts = {}
+        for f in findings:
+            sev = f.get("extra", {}).get("severity", "unknown").upper()
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+        result = {
+            "success": True,
+            "repo_path": repo_path,
+            "base_ref": base_ref,
+            "head_ref": head_ref,
+            "ruleset": ruleset,
+            "changed_files_count": len(changed_files),
+            "changed_files": changed_files,
+            "total_findings": len(findings),
+            "severity_counts": severity_counts,
+            "findings": findings,
+        }
+        logger.info(f"📊 Git diff scan: {len(findings)} findings across {len(changed_files)} changed files")
+        return jsonify(result)
+
+    except Exception as exc:
+        logger.error(f"💥 git_diff_scan error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+# Framework-specific check packs used by framework_security_agent
+_FRAMEWORK_CHECKS = {
+    "django": [
+        ("debug_mode",        "grep -r 'DEBUG.*=.*True' {path} --include='*.py' -l"),
+        ("secret_key_hardcoded", "grep -rn 'SECRET_KEY\\s*=' {path} --include='*.py'"),
+        ("admin_enabled",     "grep -rn 'django.contrib.admin' {path} --include='*.py'"),
+        ("allowed_hosts_open","grep -rn \"ALLOWED_HOSTS.*\\*\" {path} --include='*.py'"),
+        ("csrf_exempt",       "grep -rn 'csrf_exempt' {path} --include='*.py'"),
+        ("raw_sql",           "grep -rn '\\.raw(' {path} --include='*.py'"),
+        ("shell_injection",   "grep -rn 'os\\.system\\|subprocess\\.call\\|subprocess\\.Popen' {path} --include='*.py'"),
+    ],
+    "nextjs": [
+        ("server_actions_exposed",  "grep -rn 'use server' {path} --include='*.ts' --include='*.tsx' --include='*.js' -l"),
+        ("api_route_no_auth",       "grep -rn 'export default.*handler\\|export.*GET\\|export.*POST' {path} --include='*.ts' -l"),
+        ("env_leaked_to_client",    "grep -rn 'NEXT_PUBLIC_.*SECRET\\|NEXT_PUBLIC_.*KEY\\|NEXT_PUBLIC_.*TOKEN' {path} --include='*.env*'"),
+        ("hardcoded_secrets",       "grep -rn 'apiKey\\s*=\\|api_key\\s*=\\|secret\\s*=' {path} --include='*.ts' --include='*.js' -l"),
+        ("nextconfig_rewrites",     "grep -rn 'rewrites\\|redirects\\|headers' {path}/next.config* 2>/dev/null"),
+        ("open_redirect",           "grep -rn 'redirect(.*req\\.' {path} --include='*.ts' --include='*.js'"),
+    ],
+    "firebase": [
+        ("rules_allow_all",     "grep -rn 'allow read, write\\|allow read;\\|allow write;' {path} --include='*.rules' --include='firestore.rules' --include='storage.rules'"),
+        ("service_account_key", "grep -rn '\"type\": \"service_account\"' {path} -l"),
+        ("api_key_exposed",     "grep -rn 'apiKey\\s*:' {path} --include='*.js' --include='*.ts' --include='*.json' -l"),
+        ("admin_sdk_misuse",    "grep -rn 'admin\\.initializeApp\\|serviceAccount' {path} --include='*.js' --include='*.ts'"),
+        ("client_side_admin",   "grep -rn 'firebase-admin' {path} --include='*.js' --include='*.ts' -l"),
+    ],
+    "auth0": [
+        ("callback_wildcard",   "grep -rn 'callbackURL.*\\*\\|redirect_uri.*\\*' {path} -l"),
+        ("algorithm_none",      "grep -rn 'algorithms.*none\\|algorithm.*none' {path} --include='*.js' --include='*.py' --include='*.ts'"),
+        ("client_secret_hardcoded", "grep -rn 'AUTH0_CLIENT_SECRET\\s*=\\|clientSecret\\s*=' {path} --include='*.js' --include='*.ts' --include='*.py'"),
+        ("state_param_missing", "grep -rn 'authorize.*state' {path} --include='*.js' --include='*.ts' -L"),
+    ],
+    "supabase": [
+        ("service_role_key",    "grep -rn 'service_role\\|SUPABASE_SERVICE_ROLE' {path} --include='*.js' --include='*.ts' --include='*.env*'"),
+        ("rls_disabled",        "grep -rn 'ALTER TABLE.*DISABLE ROW LEVEL\\|rls.*false' {path} --include='*.sql' -i"),
+        ("anon_key_server_side","grep -rn 'anon.*createClient\\|createClient.*anon' {path} --include='*.ts' --include='*.js'"),
+        ("jwt_secret_exposed",  "grep -rn 'JWT_SECRET\\|jwt_secret' {path} --include='*.env*' --include='*.js' --include='*.ts'"),
+    ],
+    "fastapi": [
+        ("debug_enabled",       "grep -rn 'debug=True\\|reload=True' {path} --include='*.py'"),
+        ("cors_allow_all",      "grep -rn 'allow_origins.*\\*\\|allow_origins=\\[\"\\*\"\\]' {path} --include='*.py'"),
+        ("no_auth_dependency",  "grep -rn '@app\\..*def ' {path} --include='*.py'"),
+        ("sql_fstring",         "grep -rn 'execute.*f\"\\|execute.*f\\x27' {path} --include='*.py'"),
+        ("hardcoded_secret",    "grep -rn 'SECRET_KEY\\s*=\\s*[\"\\x27]' {path} --include='*.py'"),
+    ],
+    "express": [
+        ("cors_allow_all",     "grep -rn 'cors()\\|origin.*\\*' {path} --include='*.js' --include='*.ts'"),
+        ("no_helmet",          "grep -rn 'app\\.use' {path} --include='*.js' --include='*.ts' -L | xargs grep -L helmet 2>/dev/null || true"),
+        ("sql_concat",         "grep -rn 'query.*+.*req\\.' {path} --include='*.js' --include='*.ts'"),
+        ("path_traversal",     "grep -rn 'req\\.params\\|req\\.query' {path} --include='*.js' --include='*.ts' | grep -i 'readFile\\|join'"),
+        ("eval_injection",     "grep -rn 'eval(req\\.' {path} --include='*.js' --include='*.ts'"),
+        ("jwt_hardcoded",      "grep -rn 'jwt\\.sign\\|jwt\\.verify' {path} --include='*.js' --include='*.ts'"),
+    ],
+}
+
+_FRAMEWORK_DETECT_SIGNALS = {
+    "django": ["manage.py", "settings.py", "wsgi.py", "django"],
+    "nextjs": ["next.config.js", "next.config.ts", "pages/", ".next/"],
+    "firebase": ["firebase.json", ".firebaserc", "firestore.rules"],
+    "auth0": ["auth0.js", ".auth0.json", "AUTH0_DOMAIN"],
+    "supabase": ["supabase/", ".supabase/", "SUPABASE_URL"],
+    "fastapi": ["fastapi", "uvicorn", "from fastapi"],
+    "express": ["express", "app.listen", "router.get"],
+}
+
+
+@app.route("/api/tools/framework-security", methods=["POST"])
+def framework_security():
+    """Framework-specific automated security checks (Next.js, Django, Firebase, Auth0, Supabase, FastAPI, Express)."""
+    try:
+        params = request.json
+        path = params.get("path", "")
+        framework = params.get("framework", "auto")
+        timeout = params.get("timeout", 60)
+
+        if not path:
+            return jsonify({"error": "path is required"}), 400
+        if not os.path.exists(path):
+            return jsonify({"error": f"path does not exist: {path}"}), 400
+
+        # Auto-detect framework
+        if framework == "auto":
+            detected = []
+            for fw, signals in _FRAMEWORK_DETECT_SIGNALS.items():
+                for sig in signals:
+                    probe_path = os.path.join(path, sig)
+                    if os.path.exists(probe_path):
+                        detected.append(fw)
+                        break
+                    # Fall back to grep for string signals
+                    if not any(c in sig for c in ["/", "."]):
+                        grep_proc = subprocess.run(
+                            ["grep", "-rl", sig, path, "--include=*.py",
+                             "--include=*.js", "--include=*.ts", "--include=*.json"],
+                            capture_output=True, text=True, timeout=10
+                        )
+                        if grep_proc.stdout.strip():
+                            detected.append(fw)
+                            break
+            framework = detected[0] if detected else "unknown"
+            if framework == "unknown":
+                return jsonify({
+                    "success": True,
+                    "framework": "unknown",
+                    "message": "Could not detect framework — pass framework= explicitly",
+                    "findings": []
+                })
+
+        checks = _FRAMEWORK_CHECKS.get(framework, [])
+        if not checks:
+            return jsonify({
+                "error": f"No check pack for framework '{framework}'. Supported: {list(_FRAMEWORK_CHECKS.keys())}"
+            }), 400
+
+        findings = []
+        for check_name, cmd_template in checks:
+            cmd_str = cmd_template.format(path=path)
+            try:
+                proc = subprocess.run(
+                    cmd_str, shell=True, capture_output=True, text=True, timeout=timeout
+                )
+                output = proc.stdout.strip()
+                if output:
+                    findings.append({
+                        "check": check_name,
+                        "framework": framework,
+                        "output": output[:3000],
+                        "severity": "HIGH" if any(k in check_name for k in [
+                            "debug", "secret", "key", "all", "wildcard", "disabled", "none"
+                        ]) else "MEDIUM",
+                    })
+            except subprocess.TimeoutExpired:
+                findings.append({
+                    "check": check_name,
+                    "framework": framework,
+                    "error": "check timed out",
+                    "severity": "INFO",
+                })
+            except Exception as e:
+                findings.append({
+                    "check": check_name,
+                    "framework": framework,
+                    "error": str(e),
+                    "severity": "INFO",
+                })
+
+        severity_counts = {}
+        for f in findings:
+            sev = f.get("severity", "INFO")
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+        result = {
+            "success": True,
+            "path": path,
+            "framework": framework,
+            "checks_run": len(checks),
+            "findings_count": len(findings),
+            "severity_counts": severity_counts,
+            "findings": findings,
+        }
+        logger.info(f"🏗️  Framework security ({framework}): {len(findings)} findings in {path}")
+        return jsonify(result)
+
+    except Exception as exc:
+        logger.error(f"💥 framework_security error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  AWS Cloud Configuration Review — Prowler / ScoutSuite / Steampipe /
+#                                   Cloudsplaining / Pacu / AWS CLI
+# ─────────────────────────────────────────────────────────────────────────────
+
+AWS_TOOL_PATHS = {
+    "prowler":       "/home/kali/.local/bin/prowler",
+    "scout":         "/home/kali/.local/share/pipx/venvs/scoutsuite/bin/scout",
+    "steampipe":     "/home/kali/.local/bin/steampipe",
+    "powerpipe":     "/home/kali/.local/bin/powerpipe",
+    "cloudsplaining":"/home/kali/.local/bin/cloudsplaining",
+    "pacu":          "/home/kali/.local/bin/pacu",
+    "aws":           "/home/kali/.local/bin/aws",
+}
+AWS_COMPLIANCE_MOD = "/home/kali/aegis-360-ai-master/tools/steampipe-aws-compliance"
+
+
+def _aws_env(profile: str = "", region: str = "us-east-1") -> dict:
+    """Build env dict with optional AWS profile override."""
+    env = os.environ.copy()
+    env["PATH"] = "/home/kali/.local/bin:" + env.get("PATH", "")
+    if profile:
+        env["AWS_PROFILE"] = profile
+    env["AWS_DEFAULT_REGION"] = region
+    return env
+
+
+@app.route("/api/aws/prowler-scan", methods=["POST"])
+def aws_prowler_scan():
+    """Run Prowler v5 AWS security assessment.
+    Body: provider (aws), checks (list|"all"), profile, region, output_format, timeout"""
+    try:
+        params = request.json or {}
+        provider       = params.get("provider", "aws")
+        checks         = params.get("checks", [])
+        profile        = params.get("profile", "")
+        region         = params.get("region", "us-east-1")
+        output_format  = params.get("output_format", "json")
+        timeout        = int(params.get("timeout", 600))
+        services       = params.get("services", [])
+
+        cmd = [AWS_TOOL_PATHS["prowler"], provider, "--output-formats", output_format, "--no-banner"]
+        if profile:
+            cmd += ["--profile", profile]
+        if region:
+            cmd += ["--region", region]
+        if checks and checks != "all":
+            cmd += ["--checks"] + (checks if isinstance(checks, list) else checks.split(","))
+        if services:
+            cmd += ["--services"] + (services if isinstance(services, list) else services.split(","))
+
+        logger.info(f"☁️  Prowler scan: provider={provider} region={region} checks={checks or 'all'}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                                  env=_aws_env(profile, region))
+        except FileNotFoundError:
+            return jsonify({"success": False, "error": "prowler not found — run: pipx install prowler"}), 503
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "error": f"prowler timed out after {timeout}s"}), 504
+
+        output = proc.stdout or ""
+        stderr = proc.stderr or ""
+        try:
+            data = json.loads(output) if output.startswith("[") or output.startswith("{") else None
+        except json.JSONDecodeError:
+            data = None
+
+        result = {
+            "success": proc.returncode in (0, 3),
+            "provider": provider,
+            "region": region,
+            "return_code": proc.returncode,
+            "findings": data if data else [],
+            "raw_output": output[:8000] if not data else "",
+            "stderr": stderr[:2000],
+        }
+        if isinstance(result["findings"], list):
+            sev_counts: dict = {}
+            for f in result["findings"]:
+                sev = f.get("severity", "unknown").upper()
+                sev_counts[sev] = sev_counts.get(sev, 0) + 1
+            result["severity_counts"] = sev_counts
+            result["total_findings"] = len(result["findings"])
+        logger.info(f"✅ Prowler done: {result.get('total_findings', '?')} findings")
+        return jsonify(result)
+
+    except Exception as exc:
+        logger.error(f"💥 prowler_scan error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/aws/scoutsuite-scan", methods=["POST"])
+def aws_scoutsuite_scan():
+    """Run ScoutSuite multi-cloud security audit.
+    Body: provider (aws|azure|gcp), profile, region, report_dir, timeout"""
+    try:
+        params = request.json or {}
+        provider    = params.get("provider", "aws")
+        profile     = params.get("profile", "")
+        region      = params.get("region", "us-east-1")
+        report_dir  = params.get("report_dir", f"/tmp/scoutsuite-{provider}-report")
+        timeout     = int(params.get("timeout", 600))
+        ruleset     = params.get("ruleset", "default")
+
+        os.makedirs(report_dir, exist_ok=True)
+        cmd = [AWS_TOOL_PATHS["scout"], provider, "--no-browser",
+               "--report-dir", report_dir, "--report-name", "aegis360-scoutsuite"]
+        if provider == "aws":
+            if profile:
+                cmd += ["--profile", profile]
+            if region:
+                cmd += ["--region", region]
+        if ruleset != "default":
+            cmd += ["--ruleset", ruleset]
+
+        logger.info(f"☁️  ScoutSuite scan: provider={provider} region={region}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                                  env=_aws_env(profile, region))
+        except FileNotFoundError:
+            return jsonify({"success": False, "error": "scout not found — run: pipx install scoutsuite"}), 503
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "error": f"scoutsuite timed out after {timeout}s"}), 504
+
+        # Parse results JSON if present
+        results_json = os.path.join(report_dir, "aegis360-scoutsuite.json")
+        findings_summary: dict = {}
+        if os.path.exists(results_json):
+            try:
+                with open(results_json) as fh:
+                    rdata = json.load(fh)
+                services = rdata.get("services", {})
+                for svc_name, svc_data in services.items():
+                    flagged = svc_data.get("findings", {})
+                    if flagged:
+                        findings_summary[svc_name] = len(flagged)
+            except Exception:
+                pass
+
+        return jsonify({
+            "success": proc.returncode == 0,
+            "provider": provider,
+            "region": region,
+            "report_dir": report_dir,
+            "findings_by_service": findings_summary,
+            "total_services_flagged": len(findings_summary),
+            "stderr": proc.stderr[:3000],
+            "stdout": proc.stdout[:3000],
+        })
+
+    except Exception as exc:
+        logger.error(f"💥 scoutsuite_scan error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/aws/steampipe-query", methods=["POST"])
+def aws_steampipe_query():
+    """Execute a Steampipe SQL query against the AWS plugin.
+    Body: query (SQL string), profile, region, timeout"""
+    try:
+        params = request.json or {}
+        query   = params.get("query", "")
+        profile = params.get("profile", "")
+        region  = params.get("region", "us-east-1")
+        timeout = int(params.get("timeout", 120))
+        output_format = params.get("output_format", "json")
+
+        if not query:
+            return jsonify({"error": "query is required"}), 400
+
+        cmd = [AWS_TOOL_PATHS["steampipe"], "query", "--output", output_format, query]
+
+        logger.info(f"🔍 Steampipe query: {query[:100]}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                                  env=_aws_env(profile, region))
+        except FileNotFoundError:
+            return jsonify({"success": False, "error": "steampipe not found"}), 503
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "error": f"steampipe timed out after {timeout}s"}), 504
+
+        rows = []
+        if output_format == "json" and proc.stdout:
+            try:
+                rows = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                rows = proc.stdout[:10000]
+
+        return jsonify({
+            "success": proc.returncode == 0,
+            "query": query,
+            "rows": rows,
+            "row_count": len(rows) if isinstance(rows, list) else 0,
+            "stderr": proc.stderr[:2000],
+        })
+
+    except Exception as exc:
+        logger.error(f"💥 steampipe_query error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/aws/steampipe-compliance", methods=["POST"])
+def aws_steampipe_compliance():
+    """Run Steampipe AWS compliance benchmark via Powerpipe.
+    Body: benchmark (cis_v300|nist_800_53_rev_5|pci_dss_v321|hipaa|all), profile, region, timeout"""
+    try:
+        params = request.json or {}
+        benchmark = params.get("benchmark", "cis_v300")
+        profile   = params.get("profile", "")
+        region    = params.get("region", "us-east-1")
+        timeout   = int(params.get("timeout", 900))
+        output_dir = params.get("output_dir", "/tmp/steampipe-compliance")
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        if not os.path.exists(AWS_COMPLIANCE_MOD):
+            return jsonify({
+                "success": False,
+                "error": f"Compliance mod not found at {AWS_COMPLIANCE_MOD}. Clone it first."
+            }), 503
+
+        cmd = [AWS_TOOL_PATHS["powerpipe"], "benchmark", "run",
+               f"aws_compliance.benchmark.{benchmark}",
+               "--output", "json",
+               "--export", os.path.join(output_dir, f"{benchmark}.json")]
+
+        logger.info(f"📋 Steampipe compliance benchmark: {benchmark}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                                  cwd=AWS_COMPLIANCE_MOD, env=_aws_env(profile, region))
+        except FileNotFoundError:
+            return jsonify({"success": False, "error": "powerpipe not found"}), 503
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "error": f"benchmark timed out after {timeout}s"}), 504
+
+        result_data: dict = {}
+        result_file = os.path.join(output_dir, f"{benchmark}.json")
+        if os.path.exists(result_file):
+            try:
+                with open(result_file) as fh:
+                    result_data = json.load(fh)
+            except Exception:
+                pass
+
+        summary = result_data.get("summary", {})
+        return jsonify({
+            "success": proc.returncode == 0,
+            "benchmark": benchmark,
+            "summary": summary,
+            "output_dir": output_dir,
+            "result_file": result_file if os.path.exists(result_file) else None,
+            "stderr": proc.stderr[:2000],
+        })
+
+    except Exception as exc:
+        logger.error(f"💥 steampipe_compliance error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/aws/cloudsplaining-scan", methods=["POST"])
+def aws_cloudsplaining_scan():
+    """Run Cloudsplaining IAM policy risk analysis.
+    Body: account_authorization_details (path to JSON) OR download_first (bool),
+          profile, exclusions, output_dir, timeout"""
+    try:
+        params = request.json or {}
+        auth_details_path = params.get("account_authorization_details", "")
+        download_first    = params.get("download_first", False)
+        profile           = params.get("profile", "")
+        output_dir        = params.get("output_dir", "/tmp/cloudsplaining-report")
+        exclusions_file   = params.get("exclusions_file", "")
+        timeout           = int(params.get("timeout", 300))
+
+        os.makedirs(output_dir, exist_ok=True)
+        env = _aws_env(profile)
+
+        if download_first or not auth_details_path:
+            auth_details_path = os.path.join(output_dir, "account-authorization-details.json")
+            dl_cmd = [AWS_TOOL_PATHS["cloudsplaining"], "download",
+                      "--output-file", auth_details_path]
+            if profile:
+                dl_cmd += ["--profile", profile]
+            logger.info(f"⬇️  Downloading IAM authorization details...")
+            try:
+                dl_proc = subprocess.run(dl_cmd, capture_output=True, text=True,
+                                         timeout=120, env=env)
+                if dl_proc.returncode != 0:
+                    return jsonify({
+                        "success": False,
+                        "error": "cloudsplaining download failed",
+                        "stderr": dl_proc.stderr[:2000]
+                    }), 500
+            except FileNotFoundError:
+                return jsonify({"success": False, "error": "cloudsplaining not found"}), 503
+            except subprocess.TimeoutExpired:
+                return jsonify({"success": False, "error": "IAM download timed out"}), 504
+
+        if not os.path.exists(auth_details_path):
+            return jsonify({
+                "error": f"account_authorization_details not found: {auth_details_path}. "
+                         "Pass download_first=true or provide a valid path."
+            }), 400
+
+        cmd = [AWS_TOOL_PATHS["cloudsplaining"], "analyze",
+               "--input-file", auth_details_path,
+               "--output-dir", output_dir]
+        if exclusions_file and os.path.exists(exclusions_file):
+            cmd += ["--exclusions-file", exclusions_file]
+
+        logger.info(f"🔐 Cloudsplaining IAM analysis: {auth_details_path}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True,
+                                  timeout=timeout, env=env)
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "error": f"cloudsplaining timed out after {timeout}s"}), 504
+
+        results_json = os.path.join(output_dir, "results.json")
+        findings: dict = {}
+        if os.path.exists(results_json):
+            try:
+                with open(results_json) as fh:
+                    findings = json.load(fh)
+            except Exception:
+                pass
+
+        risk_summary: dict = {}
+        if isinstance(findings, dict):
+            for principal, risks in findings.items():
+                if isinstance(risks, dict):
+                    risk_summary[principal] = {k: len(v) for k, v in risks.items() if isinstance(v, list)}
+
+        return jsonify({
+            "success": proc.returncode == 0,
+            "auth_details_path": auth_details_path,
+            "output_dir": output_dir,
+            "risk_summary": risk_summary,
+            "total_principals_at_risk": len(risk_summary),
+            "stderr": proc.stderr[:2000],
+        })
+
+    except Exception as exc:
+        logger.error(f"💥 cloudsplaining_scan error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/aws/pacu-module", methods=["POST"])
+def aws_pacu_module():
+    """Run a Pacu AWS exploitation/enumeration module.
+    Body: module (e.g. iam__enum_users_roles_policies_groups), profile,
+          region, session_name, timeout"""
+    try:
+        params = request.json or {}
+        module       = params.get("module", "iam__enum_users_roles_policies_groups")
+        profile      = params.get("profile", "")
+        region       = params.get("region", "us-east-1")
+        session_name = params.get("session_name", "aegis360-pacu")
+        module_args  = params.get("module_args", "")
+        timeout      = int(params.get("timeout", 300))
+
+        if not module:
+            return jsonify({"error": "module is required"}), 400
+
+        pacu_input_lines = [session_name, "run " + module + (" " + module_args if module_args else ""), "exit"]
+        pacu_input = "\n".join(pacu_input_lines) + "\n"
+
+        env = _aws_env(profile, region)
+        cmd = [AWS_TOOL_PATHS["pacu"]]
+
+        logger.info(f"🦅 Pacu module: {module} session={session_name}")
+        try:
+            proc = subprocess.run(cmd, input=pacu_input, capture_output=True, text=True,
+                                  timeout=timeout, env=env)
+        except FileNotFoundError:
+            return jsonify({"success": False, "error": "pacu not found — run: pipx install pacu"}), 503
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "error": f"pacu timed out after {timeout}s"}), 504
+
+        output = (proc.stdout or "") + (proc.stderr or "")
+        return jsonify({
+            "success": proc.returncode == 0,
+            "module": module,
+            "session_name": session_name,
+            "output": output[:10000],
+            "return_code": proc.returncode,
+        })
+
+    except Exception as exc:
+        logger.error(f"💥 pacu_module error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/aws/cli", methods=["POST"])
+def aws_cli():
+    """Execute an arbitrary AWS CLI v2 command safely.
+    Body: command (full aws subcommand string, e.g. 's3 ls'), profile, region, timeout"""
+    try:
+        params = request.json or {}
+        command = params.get("command", "")
+        profile = params.get("profile", "")
+        region  = params.get("region", "us-east-1")
+        timeout = int(params.get("timeout", 60))
+        output_json = params.get("output_json", True)
+
+        if not command:
+            return jsonify({"error": "command is required"}), 400
+
+        # Reject obviously dangerous patterns
+        BLOCKED = (";", "&&", "||", "|", "`", "$(", "rm ", "delete", "terminate", "destroy")
+        if any(b in command for b in BLOCKED):
+            return jsonify({"error": "command contains blocked characters/keywords"}), 400
+
+        parts = command.split()
+        cmd = [AWS_TOOL_PATHS["aws"]] + parts
+        if output_json and "--output" not in command:
+            cmd += ["--output", "json"]
+        if profile and "--profile" not in command:
+            cmd += ["--profile", profile]
+        if region and "--region" not in command:
+            cmd += ["--region", region]
+
+        logger.info(f"☁️  AWS CLI: {command[:100]}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True,
+                                  timeout=timeout, env=_aws_env(profile, region))
+        except FileNotFoundError:
+            return jsonify({"success": False, "error": "aws CLI not found"}), 503
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "error": f"aws CLI timed out after {timeout}s"}), 504
+
+        data = None
+        if proc.stdout:
+            try:
+                data = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                data = proc.stdout[:10000]
+
+        return jsonify({
+            "success": proc.returncode == 0,
+            "command": command,
+            "data": data,
+            "stderr": proc.stderr[:2000],
+            "return_code": proc.returncode,
+        })
+
+    except Exception as exc:
+        logger.error(f"💥 aws_cli error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/aws/config-review", methods=["POST"])
+def aws_config_review():
+    """Orchestrated AWS configuration review: runs Prowler + Cloudsplaining together.
+    Body: profile, region, checks, services, download_iam (bool), output_dir, timeout"""
+    try:
+        params = request.json or {}
+        profile      = params.get("profile", "")
+        region       = params.get("region", "us-east-1")
+        checks       = params.get("checks", [])
+        services     = params.get("services", ["iam", "s3", "ec2", "rds", "cloudtrail", "kms"])
+        download_iam = params.get("download_iam", True)
+        output_dir   = params.get("output_dir", "/tmp/aegis360-aws-review")
+        timeout      = int(params.get("timeout", 900))
+
+        os.makedirs(output_dir, exist_ok=True)
+        env = _aws_env(profile, region)
+        results: dict = {"profile": profile, "region": region, "output_dir": output_dir, "tools": {}}
+
+        # 1 — Prowler scan
+        prowler_cmd = [AWS_TOOL_PATHS["prowler"], "aws", "--output-formats", "json",
+                       "--no-banner", "--output-directory", output_dir]
+        if profile:
+            prowler_cmd += ["--profile", profile]
+        if region:
+            prowler_cmd += ["--region", region]
+        if services:
+            prowler_cmd += ["--services"] + services
+        if checks and checks != "all":
+            prowler_cmd += ["--checks"] + (checks if isinstance(checks, list) else checks.split(","))
+
+        logger.info(f"🔍 Config review — Prowler phase (region={region})")
+        try:
+            p1 = subprocess.run(prowler_cmd, capture_output=True, text=True,
+                                timeout=timeout // 2, env=env)
+            prowler_out = p1.stdout or ""
+            try:
+                prowler_findings = json.loads(prowler_out) if prowler_out.startswith("[") else []
+            except Exception:
+                prowler_findings = []
+            sev_counts: dict = {}
+            for f in prowler_findings:
+                sev = f.get("severity", "unknown").upper()
+                sev_counts[sev] = sev_counts.get(sev, 0) + 1
+            results["tools"]["prowler"] = {
+                "total": len(prowler_findings),
+                "severity_counts": sev_counts,
+                "return_code": p1.returncode,
+            }
+        except subprocess.TimeoutExpired:
+            results["tools"]["prowler"] = {"error": "timed out"}
+        except Exception as e:
+            results["tools"]["prowler"] = {"error": str(e)}
+
+        # 2 — Cloudsplaining IAM analysis
+        if download_iam:
+            auth_path = os.path.join(output_dir, "account-auth-details.json")
+            dl_cmd = [AWS_TOOL_PATHS["cloudsplaining"], "download", "--output-file", auth_path]
+            if profile:
+                dl_cmd += ["--profile", profile]
+            try:
+                dl = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=120, env=env)
+                if dl.returncode == 0 and os.path.exists(auth_path):
+                    cs_cmd = [AWS_TOOL_PATHS["cloudsplaining"], "analyze",
+                              "--input-file", auth_path, "--output-dir", output_dir]
+                    cs = subprocess.run(cs_cmd, capture_output=True, text=True, timeout=180, env=env)
+                    results_json = os.path.join(output_dir, "results.json")
+                    if os.path.exists(results_json):
+                        with open(results_json) as fh:
+                            cs_data = json.load(fh)
+                        results["tools"]["cloudsplaining"] = {
+                            "principals_at_risk": len(cs_data),
+                            "return_code": cs.returncode,
+                        }
+                    else:
+                        results["tools"]["cloudsplaining"] = {"return_code": cs.returncode}
+                else:
+                    results["tools"]["cloudsplaining"] = {"error": "download failed", "stderr": dl.stderr[:500]}
+            except subprocess.TimeoutExpired:
+                results["tools"]["cloudsplaining"] = {"error": "timed out"}
+            except Exception as e:
+                results["tools"]["cloudsplaining"] = {"error": str(e)}
+
+        results["success"] = True
+        logger.info(f"✅ AWS config review complete: {results['tools']}")
+        return jsonify(results)
+
+    except Exception as exc:
+        logger.error(f"💥 aws_config_review error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/aws/tools-status", methods=["GET"])
+def aws_tools_status():
+    """Check install status and version of all AWS cloud review tools."""
+    status: dict = {}
+    checks = {
+        "prowler":        ([AWS_TOOL_PATHS["prowler"], "--version"], r"Prowler\s+([\d.]+)"),
+        "scoutsuite":     ([AWS_TOOL_PATHS["scout"], "--version"], r"Scout Suite\s+([\d.]+)"),
+        "steampipe":      ([AWS_TOOL_PATHS["steampipe"], "--version"], r"Steampipe\s+v([\d.]+)"),
+        "powerpipe":      ([AWS_TOOL_PATHS["powerpipe"], "--version"], r"Powerpipe\s+v([\d.]+)"),
+        "cloudsplaining": ([AWS_TOOL_PATHS["cloudsplaining"], "--version"], r"cloudsplaining,\s+version\s+([\d.]+)"),
+        "pacu":           ([AWS_TOOL_PATHS["pacu"], "--help"], r"pacu"),
+        "aws_cli":        ([AWS_TOOL_PATHS["aws"], "--version"], r"aws-cli/([\d.]+)"),
+    }
+    import re
+    for name, (cmd, pattern) in checks.items():
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            combined = (proc.stdout or "") + (proc.stderr or "")
+            m = re.search(pattern, combined, re.IGNORECASE)
+            status[name] = {"installed": True, "version": m.group(1) if m and m.lastindex else "detected"}
+        except FileNotFoundError:
+            status[name] = {"installed": False, "version": None}
+        except Exception as e:
+            status[name] = {"installed": False, "error": str(e)}
+
+    status["steampipe_aws_plugin"] = {
+        "path": "/home/kali/.steampipe/plugins/hub.steampipe.io/plugins/turbot/aws@latest",
+        "installed": os.path.isdir("/home/kali/.steampipe/plugins/hub.steampipe.io/plugins/turbot/aws@latest"),
+    }
+    status["aws_compliance_mod"] = {
+        "path": AWS_COMPLIANCE_MOD,
+        "installed": os.path.isdir(AWS_COMPLIANCE_MOD),
+    }
+    return jsonify({"success": True, "tools": status})
 
 
 # Create the banner after all classes are defined

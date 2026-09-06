@@ -12529,6 +12529,219 @@ session.fuzz()
     # END PRAETORIAN TOOLS MODULE
     # =========================================================================
 
+    # =========================================================================
+    # DEEPTEAM MODULE — LLM Red-Teaming & Adversarial Safety Testing
+    # =========================================================================
+
+    @mcp.tool()
+    def deepteam_scan(
+        endpoint_url: str = "",
+        model: str = "",
+        api_key: str = "",
+        base_url: str = "",
+        system_prompt: str = "",
+        target_purpose: str = "",
+        vulnerabilities: str = "Toxicity,PIILeakage,PromptLeakage",
+        attacks: str = "PromptInjection,Roleplay",
+        attacks_per_vulnerability: int = 1,
+        simulator_model: str = "gpt-3.5-turbo-0125",
+        evaluation_model: str = "gpt-4o",
+        max_concurrent: int = 5,
+        scan_timeout: int = 600,
+    ) -> Dict[str, Any]:
+        """
+        Run a DeepTeam LLM red-team scan against a target AI model or endpoint.
+
+        DeepTeam systematically attacks an LLM with adversarial inputs and scores
+        vulnerability across 40+ risk categories including jailbreaks, prompt injection,
+        PII leakage, SQL/shell injection, SSRF, RBAC bypass, and agentic risks.
+
+        TARGET — provide one of:
+            endpoint_url: HTTP endpoint receiving {"prompt":…} → {"response":…}
+            model + api_key: OpenAI-compatible model (e.g. "gpt-4o-mini")
+            model + base_url: Self-hosted via Ollama/LiteLLM (no api_key needed)
+
+        Args:
+            endpoint_url: Custom HTTP target endpoint URL
+            model: OpenAI-compatible model name (e.g. "gpt-4o-mini", "claude-3-5-haiku-20241022")
+            api_key: API key for the target provider (overrides env OPENAI_API_KEY)
+            base_url: Custom OpenAI-compatible base URL (for Ollama, LiteLLM, etc.)
+            system_prompt: System prompt to prepend to all requests to the target
+            target_purpose: Short description of the target's intended use (improves attack quality)
+            vulnerabilities: Comma-separated vulnerability names to test.
+                Safety: Toxicity, Bias, IllegalActivity, GraphicContent, PersonalSafety, ChildProtection, Ethics
+                Privacy: PIILeakage, PromptLeakage, Misinformation, Hallucination, IntellectualProperty
+                Security: SQLInjection, SSRF, ShellInjection, DebugAccess, SystemReconnaissance, UnexpectedCodeExecution
+                Access: RBAC, BOLA, BFLA
+                Agentic: ExcessiveAgency, ExploitToolAgent, GoalTheft, AgentIdentityAbuse, IndirectInstruction
+            attacks: Comma-separated attack method names to apply.
+                Single-turn: PromptInjection, Roleplay, MathProblem, Base64, ROT13, Leetspeak,
+                             Multilingual, AuthorityEscalation, SystemOverride, ContextFlooding
+                Multi-turn: LinearJailbreaking, TreeJailbreaking, CrescendoJailbreaking, BadLikertJudge
+            attacks_per_vulnerability: Number of attack variants per vulnerability type (default: 1)
+            simulator_model: Model to generate attack variants (default: gpt-3.5-turbo-0125, needs OPENAI_API_KEY)
+            evaluation_model: Model to score responses (default: gpt-4o, needs OPENAI_API_KEY)
+            max_concurrent: Max concurrent scoring evaluations (default: 5)
+            scan_timeout: Max seconds to wait for scan completion before returning async (default: 600)
+
+        Returns:
+            Scan results with vulnerability scores, attack outcomes, and risk assessment
+        """
+        data = {
+            "endpoint_url": endpoint_url,
+            "model": model,
+            "api_key": api_key,
+            "base_url": base_url,
+            "system_prompt": system_prompt,
+            "target_purpose": target_purpose,
+            "vulnerabilities": vulnerabilities,
+            "attacks": attacks,
+            "attacks_per_vulnerability": attacks_per_vulnerability,
+            "simulator_model": simulator_model,
+            "evaluation_model": evaluation_model,
+            "max_concurrent": max_concurrent,
+            "scan_timeout": scan_timeout,
+        }
+        result = aegis360_client.safe_post("api/deepteam/scan", data)
+        return result
+
+    @mcp.tool()
+    def deepteam_scan_async(
+        endpoint_url: str = "",
+        model: str = "",
+        api_key: str = "",
+        base_url: str = "",
+        system_prompt: str = "",
+        target_purpose: str = "",
+        vulnerabilities: str = "Toxicity,PIILeakage,PromptLeakage",
+        attacks: str = "PromptInjection,Roleplay,LinearJailbreaking",
+        attacks_per_vulnerability: int = 2,
+        simulator_model: str = "gpt-3.5-turbo-0125",
+        evaluation_model: str = "gpt-4o",
+        max_concurrent: int = 5,
+    ) -> Dict[str, Any]:
+        """
+        Submit a DeepTeam LLM red-team scan as a background job (non-blocking).
+
+        Use this when running comprehensive scans that may take many minutes.
+        Returns a job_id immediately; poll deepteam_status(job_id) for results.
+
+        Same parameters as deepteam_scan (minus scan_timeout).
+
+        Args:
+            endpoint_url: Custom HTTP target endpoint URL
+            model: OpenAI-compatible model name
+            api_key: API key for the target provider
+            base_url: Custom OpenAI-compatible base URL
+            system_prompt: System prompt for the target LLM
+            target_purpose: Description of target's intended use
+            vulnerabilities: Comma-separated vulnerability names (see deepteam_scan for full list)
+            attacks: Comma-separated attack names (see deepteam_scan for full list)
+            attacks_per_vulnerability: Attack variants per vulnerability type (default: 2)
+            simulator_model: Attack generation model (default: gpt-3.5-turbo-0125)
+            evaluation_model: Scoring model (default: gpt-4o)
+            max_concurrent: Max concurrent evaluations (default: 5)
+
+        Returns:
+            {"job_id": "...", "status": "queued", "poll_url": "/api/deepteam/status/<job_id>"}
+        """
+        data = {
+            "endpoint_url": endpoint_url,
+            "model": model,
+            "api_key": api_key,
+            "base_url": base_url,
+            "system_prompt": system_prompt,
+            "target_purpose": target_purpose,
+            "vulnerabilities": vulnerabilities,
+            "attacks": attacks,
+            "attacks_per_vulnerability": attacks_per_vulnerability,
+            "simulator_model": simulator_model,
+            "evaluation_model": evaluation_model,
+            "max_concurrent": max_concurrent,
+        }
+        result = aegis360_client.safe_post("api/deepteam/scan-async", data)
+        return result
+
+    @mcp.tool()
+    def deepteam_status(job_id: str) -> Dict[str, Any]:
+        """
+        Check the status of a DeepTeam background scan job.
+
+        Args:
+            job_id: Job ID returned by deepteam_scan_async
+
+        Returns:
+            Job status: queued | running | completed | failed, plus result when done
+        """
+        result = aegis360_client.safe_get(f"api/deepteam/status/{job_id}")
+        return result
+
+    @mcp.tool()
+    def deepteam_report(job_id: str) -> Dict[str, Any]:
+        """
+        Retrieve the full results of a completed DeepTeam scan.
+
+        Args:
+            job_id: Job ID of a completed scan
+
+        Returns:
+            Full vulnerability assessment results including scores and attack transcripts
+        """
+        result = aegis360_client.safe_get(f"api/deepteam/report/{job_id}")
+        return result
+
+    @mcp.tool()
+    def deepteam_jobs() -> Dict[str, Any]:
+        """
+        List all submitted DeepTeam scan jobs with their current status.
+
+        Returns:
+            Dictionary of job_id → {status, params_summary, timestamps}
+        """
+        result = aegis360_client.safe_get("api/deepteam/jobs")
+        return result
+
+    @mcp.tool()
+    def deepteam_vulnerabilities() -> Dict[str, Any]:
+        """
+        List all supported DeepTeam vulnerability categories and their sub-types.
+
+        Use this to discover valid values for the vulnerabilities parameter in deepteam_scan.
+
+        Returns:
+            Catalog of vulnerability names, descriptions, and category groupings
+        """
+        result = aegis360_client.safe_get("api/deepteam/vulnerabilities")
+        return result
+
+    @mcp.tool()
+    def deepteam_attacks() -> Dict[str, Any]:
+        """
+        List all supported DeepTeam attack methods (single-turn and multi-turn).
+
+        Use this to discover valid values for the attacks parameter in deepteam_scan.
+
+        Returns:
+            Lists of single-turn and multi-turn attack method names
+        """
+        result = aegis360_client.safe_get("api/deepteam/attacks")
+        return result
+
+    @mcp.tool()
+    def deepteam_version() -> Dict[str, Any]:
+        """
+        Return the installed deepteam library version.
+
+        Returns:
+            Version string for the confident-ai/deepteam package
+        """
+        result = aegis360_client.safe_get("api/deepteam/version")
+        return result
+
+    # =========================================================================
+    # END DEEPTEAM MODULE
+    # =========================================================================
+
     @mcp.tool()
     def pius_scan(org: str, domain: str = "", asn: str = "", mode: str = "passive",
                   output_format: str = "json", plugins: str = "", disable_plugins: str = "",
@@ -14063,6 +14276,341 @@ session.fuzz()
             return {"success": False, "error": f"Unknown cortex_command: {cortex_command}"}
         logger.info(f"{Aegis360Colors.HACKER_RED}🦅 clawstrike cortex {cortex_command} | engagement={engagement_id}{Aegis360Colors.RESET}")
         return _clawstrike_run(args, timeout=timeout)
+
+    # ── AWS Cloud Configuration Review Tools ─────────────────────────────────
+
+    @mcp.tool()
+    def aws_tools_status() -> Dict[str, Any]:
+        """Check the install status and version of all AWS cloud review tools
+        (Prowler, ScoutSuite, Steampipe, Powerpipe, Cloudsplaining, Pacu, AWS CLI,
+        Steampipe AWS plugin, AWS compliance mod).
+
+        Returns a dict with a 'tools' key mapping each tool name to
+        {'installed': bool, 'version': str}.
+        """
+        logger.info(f"{Aegis360Colors.NEON_BLUE}☁️  AWS tools status check{Aegis360Colors.RESET}")
+        return aegis360_client.safe_get("api/aws/tools-status")
+
+    @mcp.tool()
+    def aws_prowler_scan(
+        provider: str = "aws",
+        checks: list = None,
+        services: list = None,
+        profile: str = "",
+        region: str = "us-east-1",
+        output_format: str = "json",
+        timeout: int = 600,
+    ) -> Dict[str, Any]:
+        """Run a Prowler v5 security assessment against an AWS account.
+
+        Args:
+            provider: Cloud provider — 'aws' (default), 'azure', 'gcp', 'kubernetes'.
+            checks: List of specific check IDs to run (e.g. ['s3_bucket_public_access']).
+                    Leave empty to run all checks.
+            services: List of service names to limit scope
+                      (e.g. ['iam', 's3', 'ec2', 'rds', 'cloudtrail', 'kms']).
+            profile: AWS named profile from ~/.aws/credentials.
+            region: AWS region (default 'us-east-1').
+            output_format: Output format — 'json' (default), 'csv', 'html'.
+            timeout: Max seconds before the scan is killed (default 600).
+
+        Returns:
+            total_findings, severity_counts dict (CRITICAL/HIGH/MEDIUM/LOW/INFO),
+            findings list, raw_output if JSON parse failed.
+        """
+        payload = {
+            "provider": provider,
+            "checks": checks or [],
+            "services": services or [],
+            "profile": profile,
+            "region": region,
+            "output_format": output_format,
+            "timeout": timeout,
+        }
+        logger.info(f"{Aegis360Colors.NEON_BLUE}☁️  Prowler scan: {provider} region={region}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/aws/prowler-scan", payload)
+        total = result.get("total_findings", "?")
+        sev = result.get("severity_counts", {})
+        logger.info(f"{Aegis360Colors.SUCCESS}✅ Prowler: {total} findings | {sev}{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def aws_scoutsuite_scan(
+        provider: str = "aws",
+        profile: str = "",
+        region: str = "us-east-1",
+        report_dir: str = "/tmp/scoutsuite-report",
+        ruleset: str = "default",
+        timeout: int = 600,
+    ) -> Dict[str, Any]:
+        """Run a ScoutSuite multi-cloud security audit.
+
+        Args:
+            provider: Cloud provider — 'aws' (default), 'azure', 'gcp', 'aliyun', 'oci'.
+            profile: AWS named profile (AWS only).
+            region: AWS region to focus on (AWS only).
+            report_dir: Directory where ScoutSuite writes its HTML/JSON report.
+            ruleset: ScoutSuite ruleset name (default or path to custom ruleset JSON).
+            timeout: Max scan duration in seconds (default 600).
+
+        Returns:
+            findings_by_service dict, total_services_flagged, report_dir path.
+        """
+        payload = {
+            "provider": provider,
+            "profile": profile,
+            "region": region,
+            "report_dir": report_dir,
+            "ruleset": ruleset,
+            "timeout": timeout,
+        }
+        logger.info(f"{Aegis360Colors.NEON_BLUE}☁️  ScoutSuite: {provider} region={region}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/aws/scoutsuite-scan", payload)
+        n = result.get("total_services_flagged", "?")
+        logger.info(f"{Aegis360Colors.SUCCESS}✅ ScoutSuite: {n} services flagged{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def aws_steampipe_query(
+        query: str,
+        profile: str = "",
+        region: str = "us-east-1",
+        output_format: str = "json",
+        timeout: int = 120,
+    ) -> Dict[str, Any]:
+        """Execute a Steampipe SQL query against the AWS plugin.
+
+        Useful for targeted config checks, e.g.:
+          "select name, versioning_enabled from aws_s3_bucket where versioning_enabled = false"
+          "select arn, password_last_used from aws_iam_user where mfa_enabled = false"
+          "select group_name, arn from aws_iam_group"
+
+        Args:
+            query: Full SQL query string (Steampipe AWS table schema).
+            profile: AWS named profile.
+            region: AWS default region.
+            output_format: 'json' (default), 'table', 'csv'.
+            timeout: Query timeout in seconds.
+
+        Returns:
+            rows list, row_count.
+        """
+        payload = {"query": query, "profile": profile, "region": region,
+                   "output_format": output_format, "timeout": timeout}
+        logger.info(f"{Aegis360Colors.NEON_BLUE}🔍 Steampipe query: {query[:80]}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/aws/steampipe-query", payload)
+        logger.info(f"{Aegis360Colors.SUCCESS}✅ Steampipe: {result.get('row_count','?')} rows{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def aws_steampipe_compliance(
+        benchmark: str = "cis_v300",
+        profile: str = "",
+        region: str = "us-east-1",
+        output_dir: str = "/tmp/steampipe-compliance",
+        timeout: int = 900,
+    ) -> Dict[str, Any]:
+        """Run an AWS compliance benchmark via Powerpipe + Steampipe AWS compliance mod.
+
+        Available benchmarks (steampipe-mod-aws-compliance):
+          cis_v300, cis_v200, cis_v140, cis_v130 — CIS AWS Foundations Benchmark
+          nist_800_53_rev_5  — NIST SP 800-53 Rev 5
+          pci_dss_v321       — PCI DSS v3.2.1
+          hipaa_final_omnibus_security_rule_2013
+          gdpr               — GDPR Article 32
+          soc_2              — SOC 2
+          aws_foundational_security  — AWS Foundational Security Best Practices
+          all                — Run every benchmark
+
+        Args:
+            benchmark: Benchmark ID (see above).
+            profile: AWS named profile.
+            region: AWS region.
+            output_dir: Directory for JSON results export.
+            timeout: Max seconds (default 900 — compliance runs are slow).
+
+        Returns:
+            summary dict with pass/fail/error counts, output file path.
+        """
+        payload = {"benchmark": benchmark, "profile": profile, "region": region,
+                   "output_dir": output_dir, "timeout": timeout}
+        logger.info(f"{Aegis360Colors.NEON_BLUE}📋 Compliance benchmark: {benchmark}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/aws/steampipe-compliance", payload)
+        logger.info(f"{Aegis360Colors.SUCCESS}✅ Benchmark done: {result.get('summary', {})}{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def aws_cloudsplaining_scan(
+        account_authorization_details: str = "",
+        download_first: bool = True,
+        profile: str = "",
+        output_dir: str = "/tmp/cloudsplaining-report",
+        exclusions_file: str = "",
+        timeout: int = 300,
+    ) -> Dict[str, Any]:
+        """Analyze AWS IAM policies with Cloudsplaining to find risky permissions.
+
+        Detects: privilege escalation paths, data exfiltration risks,
+        resource exposure, credential exposure, and infrastructure modification.
+
+        Args:
+            account_authorization_details: Path to an existing IAM authorization details JSON.
+                                           If empty, set download_first=True to fetch it live.
+            download_first: If True (default), run 'cloudsplaining download' first to pull the
+                            current IAM state from the account.
+            profile: AWS named profile.
+            output_dir: Directory for the Cloudsplaining HTML+JSON report.
+            exclusions_file: Path to a cloudsplaining exclusions YAML (optional).
+            timeout: Max seconds for analysis phase.
+
+        Returns:
+            principals_at_risk count, risk_summary dict keyed by principal ARN.
+        """
+        payload = {
+            "account_authorization_details": account_authorization_details,
+            "download_first": download_first,
+            "profile": profile,
+            "output_dir": output_dir,
+            "exclusions_file": exclusions_file,
+            "timeout": timeout,
+        }
+        logger.info(f"{Aegis360Colors.NEON_BLUE}🔐 Cloudsplaining IAM analysis (download={download_first}){Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/aws/cloudsplaining-scan", payload)
+        n = result.get("total_principals_at_risk", "?")
+        logger.info(f"{Aegis360Colors.SUCCESS}✅ Cloudsplaining: {n} principals at risk{Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def aws_pacu_module(
+        module: str = "iam__enum_users_roles_policies_groups",
+        profile: str = "",
+        region: str = "us-east-1",
+        session_name: str = "aegis360-pacu",
+        module_args: str = "",
+        timeout: int = 300,
+    ) -> Dict[str, Any]:
+        """Run a Pacu AWS enumeration or exploitation module.
+
+        Common enumeration modules (safe for authorized assessments):
+          iam__enum_users_roles_policies_groups   — full IAM inventory
+          iam__enum_permissions                   — enumerate effective permissions
+          aws__enum_account                       — account metadata
+          s3__enum                                — S3 bucket inventory
+          ec2__enum                               — EC2 inventory
+          guardduty__enum                         — GuardDuty findings
+          cloudtrail__enum                        — CloudTrail config
+          lambda__enum                            — Lambda function inventory
+          ecs__enum                               — ECS cluster / task inventory
+          ecr__enum                               — ECR container registry
+
+        Args:
+            module: Pacu module name (see above).
+            profile: AWS named profile.
+            region: AWS region.
+            session_name: Pacu session name (default 'aegis360-pacu').
+            module_args: Additional arguments passed to the module (string).
+            timeout: Max seconds before killing the session.
+
+        Returns:
+            module output text (combined stdout+stderr), return_code.
+        """
+        payload = {
+            "module": module,
+            "profile": profile,
+            "region": region,
+            "session_name": session_name,
+            "module_args": module_args,
+            "timeout": timeout,
+        }
+        logger.info(f"{Aegis360Colors.NEON_BLUE}🦅 Pacu module: {module}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/aws/pacu-module", payload)
+        rc = result.get("return_code", "?")
+        logger.info(f"{Aegis360Colors.SUCCESS}✅ Pacu module done (rc={rc}){Aegis360Colors.RESET}")
+        return result
+
+    @mcp.tool()
+    def aws_cli_run(
+        command: str,
+        profile: str = "",
+        region: str = "us-east-1",
+        output_json: bool = True,
+        timeout: int = 60,
+    ) -> Dict[str, Any]:
+        """Execute an AWS CLI v2 command and return structured output.
+
+        Example commands:
+          's3 ls'
+          'iam list-users'
+          'ec2 describe-instances'
+          'cloudtrail describe-trails'
+          'sts get-caller-identity'
+          'guardduty list-findings --detector-id <id>'
+          'config describe-configuration-recorders'
+
+        Note: Delete/terminate/destroy/pipe operations are blocked for safety.
+
+        Args:
+            command: AWS CLI subcommand string (without leading 'aws').
+            profile: AWS named profile.
+            region: AWS region.
+            output_json: Append --output json automatically (default True).
+            timeout: Command timeout in seconds.
+
+        Returns:
+            data (parsed JSON or raw string), return_code, stderr.
+        """
+        payload = {"command": command, "profile": profile, "region": region,
+                   "output_json": output_json, "timeout": timeout}
+        logger.info(f"{Aegis360Colors.NEON_BLUE}☁️  AWS CLI: aws {command[:80]}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/aws/cli", payload)
+        ok = result.get("success", False)
+        logger.info(f"{'✅' if ok else '❌'} AWS CLI done: {command[:40]}")
+        return result
+
+    @mcp.tool()
+    def aws_config_review(
+        profile: str = "",
+        region: str = "us-east-1",
+        services: list = None,
+        checks: list = None,
+        download_iam: bool = True,
+        output_dir: str = "/tmp/aegis360-aws-review",
+        timeout: int = 900,
+    ) -> Dict[str, Any]:
+        """Orchestrated AWS configuration review — runs Prowler + Cloudsplaining together.
+
+        This is the primary entry point for a full AWS configuration review engagement.
+        It runs:
+          1. Prowler — service-scoped security checks
+          2. Cloudsplaining — IAM privilege/risk analysis
+
+        Args:
+            profile: AWS named profile.
+            region: AWS region (default 'us-east-1').
+            services: Prowler service scope. Default: iam, s3, ec2, rds, cloudtrail, kms.
+            checks: Specific Prowler check IDs (empty = all checks for given services).
+            download_iam: Download IAM auth details for Cloudsplaining (default True).
+            output_dir: Parent directory for all tool output (default /tmp/aegis360-aws-review).
+            timeout: Total budget in seconds across both tools.
+
+        Returns:
+            tools dict with 'prowler' and 'cloudsplaining' sub-results,
+            each containing total findings / severity_counts / principals_at_risk.
+        """
+        payload = {
+            "profile": profile,
+            "region": region,
+            "services": services or ["iam", "s3", "ec2", "rds", "cloudtrail", "kms"],
+            "checks": checks or [],
+            "download_iam": download_iam,
+            "output_dir": output_dir,
+            "timeout": timeout,
+        }
+        logger.info(f"{Aegis360Colors.NEON_BLUE}☁️  AWS config review: region={region} services={services or 'default'}{Aegis360Colors.RESET}")
+        result = aegis360_client.safe_post("api/aws/config-review", payload)
+        tools = result.get("tools", {})
+        logger.info(f"{Aegis360Colors.SUCCESS}✅ Config review done: {list(tools.keys())}{Aegis360Colors.RESET}")
+        return result
 
     return mcp
 
