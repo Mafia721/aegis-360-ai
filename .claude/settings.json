@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/kali/aegis-360-ai-master/scripts/scope_guard.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -8732,7 +8732,7 @@ def execute_command(command: str, use_cache: bool = True) -> Dict[str, Any]:
         A dictionary containing the stdout, stderr, return code, and metadata
     """
 
-    # Check cache first
+    # Check cache first (params={} — command string already encodes full invocation)
     if use_cache:
         cached_result = cache.get(command, {})
         if cached_result:
@@ -8742,7 +8742,7 @@ def execute_command(command: str, use_cache: bool = True) -> Dict[str, Any]:
     executor = EnhancedCommandExecutor(command)
     result = executor.execute()
 
-    # Cache successful results
+    # Cache successful results (params={} matches the get() key above)
     if use_cache and result.get("success", False):
         cache.set(command, {}, result)
 

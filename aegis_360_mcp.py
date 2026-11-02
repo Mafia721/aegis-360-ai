@@ -2458,40 +2458,6 @@ def setup_mcp_server(aegis360_client: Aegis360Client) -> FastMCP:
         return result
 
     @mcp.tool()
-    def katana_crawl(url: str, depth: int = 3, js_crawl: bool = True,
-                    form_extraction: bool = True, output_format: str = "json",
-                    additional_args: str = "") -> Dict[str, Any]:
-        """
-        Execute Katana for next-generation crawling and spidering with enhanced logging.
-
-        Args:
-            url: The target URL to crawl
-            depth: Crawling depth
-            js_crawl: Enable JavaScript crawling
-            form_extraction: Enable form extraction
-            output_format: Output format (json, txt)
-            additional_args: Additional Katana arguments
-
-        Returns:
-            Advanced web crawling results with endpoints and forms
-        """
-        data = {
-            "url": url,
-            "depth": depth,
-            "js_crawl": js_crawl,
-            "form_extraction": form_extraction,
-            "output_format": output_format,
-            "additional_args": additional_args
-        }
-        logger.info(f"⚔️  Starting Katana crawl: {url}")
-        result = aegis360_client.safe_post("api/tools/katana", data)
-        if result.get("success"):
-            logger.info(f"✅ Katana crawl completed for {url}")
-        else:
-            logger.error(f"❌ Katana crawl failed for {url}")
-        return result
-
-    @mcp.tool()
     def gau_discovery(domain: str, providers: str = "wayback,commoncrawl,otx,urlscan",
                      include_subs: bool = True, blacklist: str = "png,jpg,gif,jpeg,swf,woff,svg,pdf,css,ico",
                      additional_args: str = "") -> Dict[str, Any]:
@@ -2521,35 +2487,6 @@ def setup_mcp_server(aegis360_client: Aegis360Client) -> FastMCP:
             logger.info(f"✅ Gau URL discovery completed for {domain}")
         else:
             logger.error(f"❌ Gau URL discovery failed for {domain}")
-        return result
-
-    @mcp.tool()
-    def waybackurls_discovery(domain: str, get_versions: bool = False,
-                             no_subs: bool = False, additional_args: str = "") -> Dict[str, Any]:
-        """
-        Execute Waybackurls for historical URL discovery with enhanced logging.
-
-        Args:
-            domain: The target domain
-            get_versions: Get all versions of URLs
-            no_subs: Don't include subdomains
-            additional_args: Additional Waybackurls arguments
-
-        Returns:
-            Historical URL discovery results from Wayback Machine
-        """
-        data = {
-            "domain": domain,
-            "get_versions": get_versions,
-            "no_subs": no_subs,
-            "additional_args": additional_args
-        }
-        logger.info(f"🕰️  Starting Waybackurls discovery: {domain}")
-        result = aegis360_client.safe_post("api/tools/waybackurls", data)
-        if result.get("success"):
-            logger.info(f"✅ Waybackurls discovery completed for {domain}")
-        else:
-            logger.error(f"❌ Waybackurls discovery failed for {domain}")
         return result
 
     @mcp.tool()
@@ -2586,38 +2523,6 @@ def setup_mcp_server(aegis360_client: Aegis360Client) -> FastMCP:
             logger.info(f"✅ Arjun parameter discovery completed for {url}")
         else:
             logger.error(f"❌ Arjun parameter discovery failed for {url}")
-        return result
-
-    @mcp.tool()
-    def paramspider_mining(domain: str, level: int = 2,
-                          exclude: str = "png,jpg,gif,jpeg,swf,woff,svg,pdf,css,ico",
-                          output: str = "", additional_args: str = "") -> Dict[str, Any]:
-        """
-        Execute ParamSpider for parameter mining from web archives with enhanced logging.
-
-        Args:
-            domain: The target domain
-            level: Mining level depth
-            exclude: File extensions to exclude
-            output: Output file path
-            additional_args: Additional ParamSpider arguments
-
-        Returns:
-            Parameter mining results from web archives
-        """
-        data = {
-            "domain": domain,
-            "level": level,
-            "exclude": exclude,
-            "output": output,
-            "additional_args": additional_args
-        }
-        logger.info(f"🕷️  Starting ParamSpider mining: {domain}")
-        result = aegis360_client.safe_post("api/tools/paramspider", data)
-        if result.get("success"):
-            logger.info(f"✅ ParamSpider mining completed for {domain}")
-        else:
-            logger.error(f"❌ ParamSpider mining failed for {domain}")
         return result
 
     @mcp.tool()
@@ -2686,83 +2591,6 @@ def setup_mcp_server(aegis360_client: Aegis360Client) -> FastMCP:
             logger.info(f"✅ Jaeles vulnerability scan completed for {url}")
         else:
             logger.error(f"❌ Jaeles vulnerability scan failed for {url}")
-        return result
-
-    @mcp.tool()
-    def dalfox_xss_scan(url: str, pipe_mode: bool = False, blind: bool = False,
-                       mining_dom: bool = True, mining_dict: bool = True,
-                       custom_payload: str = "", additional_args: str = "") -> Dict[str, Any]:
-        """
-        Execute Dalfox for advanced XSS vulnerability scanning with enhanced logging.
-
-        Args:
-            url: The target URL
-            pipe_mode: Use pipe mode for input
-            blind: Enable blind XSS testing
-            mining_dom: Enable DOM mining
-            mining_dict: Enable dictionary mining
-            custom_payload: Custom XSS payload
-            additional_args: Additional Dalfox arguments
-
-        Returns:
-            Advanced XSS vulnerability scanning results
-        """
-        data = {
-            "url": url,
-            "pipe_mode": pipe_mode,
-            "blind": blind,
-            "mining_dom": mining_dom,
-            "mining_dict": mining_dict,
-            "custom_payload": custom_payload,
-            "additional_args": additional_args
-        }
-        logger.info(f"🎯 Starting Dalfox XSS scan: {url if url else 'pipe mode'}")
-        result = aegis360_client.safe_post("api/tools/dalfox", data)
-        if result.get("success"):
-            logger.info(f"✅ Dalfox XSS scan completed")
-        else:
-            logger.error(f"❌ Dalfox XSS scan failed")
-        return result
-
-    @mcp.tool()
-    def httpx_probe(target: str, probe: bool = True, tech_detect: bool = False,
-                   status_code: bool = False, content_length: bool = False,
-                   title: bool = False, web_server: bool = False, threads: int = 50,
-                   additional_args: str = "") -> Dict[str, Any]:
-        """
-        Execute httpx for fast HTTP probing and technology detection.
-
-        Args:
-            target: Target file or single URL
-            probe: Enable probing
-            tech_detect: Enable technology detection
-            status_code: Show status codes
-            content_length: Show content length
-            title: Show page titles
-            web_server: Show web server
-            threads: Number of threads
-            additional_args: Additional httpx arguments
-
-        Returns:
-            Fast HTTP probing results with technology detection
-        """
-        data = {
-            "target": target,
-            "probe": probe,
-            "tech_detect": tech_detect,
-            "status_code": status_code,
-            "content_length": content_length,
-            "title": title,
-            "web_server": web_server,
-            "threads": threads,
-            "additional_args": additional_args
-        }
-        logger.info(f"🌍 Starting httpx probe: {target}")
-        result = aegis360_client.safe_post("api/tools/httpx", data)
-        if result.get("success"):
-            logger.info(f"✅ httpx probe completed for {target}")
-        else:
-            logger.error(f"❌ httpx probe failed for {target}")
         return result
 
     @mcp.tool()
@@ -3596,47 +3424,6 @@ def setup_mcp_server(aegis360_client: Aegis360Client) -> FastMCP:
     # ============================================================================
 
     @mcp.tool()
-    def hakrawler_crawl(url: str, depth: int = 2, forms: bool = True, robots: bool = True, sitemap: bool = True, wayback: bool = False, additional_args: str = "") -> Dict[str, Any]:
-        """
-        Execute Hakrawler for web endpoint discovery with enhanced logging.
-
-        Note: Uses standard Kali Linux hakrawler (hakluke/hakrawler) with parameter mapping:
-        - url: Piped via echo to stdin (not -url flag)
-        - depth: Mapped to -d flag (not -depth)
-        - forms: Mapped to -s flag for showing sources
-        - robots/sitemap/wayback: Mapped to -subs for subdomain inclusion
-        - Always includes -u for unique URLs
-
-        Args:
-            url: Target URL to crawl
-            depth: Crawling depth (mapped to -d)
-            forms: Include forms in crawling (mapped to -s)
-            robots: Check robots.txt (mapped to -subs)
-            sitemap: Check sitemap.xml (mapped to -subs)
-            wayback: Use Wayback Machine (mapped to -subs)
-            additional_args: Additional Hakrawler arguments
-
-        Returns:
-            Web endpoint discovery results
-        """
-        data = {
-            "url": url,
-            "depth": depth,
-            "forms": forms,
-            "robots": robots,
-            "sitemap": sitemap,
-            "wayback": wayback,
-            "additional_args": additional_args
-        }
-        logger.info(f"🕷️ Starting Hakrawler crawling: {url}")
-        result = aegis360_client.safe_post("api/tools/hakrawler", data)
-        if result.get("success"):
-            logger.info(f"✅ Hakrawler crawling completed")
-        else:
-            logger.error(f"❌ Hakrawler crawling failed")
-        return result
-
-    @mcp.tool()
     def httpx_probe(targets: str = "", target_file: str = "", ports: str = "", methods: str = "GET", status_code: str = "", content_length: bool = False, output_file: str = "", additional_args: str = "") -> Dict[str, Any]:
         """
         Execute HTTPx for HTTP probing with enhanced logging.
@@ -3816,40 +3603,6 @@ def setup_mcp_server(aegis360_client: Aegis360Client) -> FastMCP:
             logger.info(f"✅ ZAP scan completed for {target}")
         else:
             logger.error(f"❌ ZAP scan failed for {target}")
-        return result
-
-    @mcp.tool()
-    def arjun_scan(url: str, method: str = "GET", data: str = "", headers: str = "", timeout: str = "", output_file: str = "", additional_args: str = "") -> Dict[str, Any]:
-        """
-        Execute Arjun for parameter discovery with enhanced logging.
-
-        Args:
-            url: Target URL
-            method: HTTP method (GET, POST, etc.)
-            data: POST data for testing
-            headers: Custom headers
-            timeout: Request timeout
-            output_file: Output file path
-            additional_args: Additional Arjun arguments
-
-        Returns:
-            Parameter discovery results
-        """
-        data = {
-            "url": url,
-            "method": method,
-            "data": data,
-            "headers": headers,
-            "timeout": timeout,
-            "output_file": output_file,
-            "additional_args": additional_args
-        }
-        logger.info(f"🔍 Starting Arjun parameter discovery: {url}")
-        result = aegis360_client.safe_post("api/tools/arjun", data)
-        if result.get("success"):
-            logger.info(f"✅ Arjun completed for {url}")
-        else:
-            logger.error(f"❌ Arjun failed for {url}")
         return result
 
     @mcp.tool()
