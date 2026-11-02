@@ -13689,6 +13689,88 @@ session.fuzz()
         return result
 
     # -------------------------------------------------------------------------
+    # RESTLER — Microsoft REST API Fuzzer
+    # -------------------------------------------------------------------------
+
+    @mcp.tool()
+    def restler_scan(
+        openapi_spec: str,
+        host: str,
+        mode: str = "test",
+        time_budget: float = 1.0,
+        output_dir: str = "",
+        token_refresh_cmd: str = "",
+        additional_args: str = "",
+    ) -> Dict[str, Any]:
+        """
+        Run Microsoft RESTler — stateful REST API fuzzer that automatically generates
+        and executes test sequences from an OpenAPI/Swagger specification.
+
+        RESTler compiles the spec into a grammar, then drives the API through four
+        progressively deeper modes:
+
+          compile   — parse spec, generate grammar.py + dict.json (no HTTP traffic)
+          test      — quick smoke-test: send one valid sequence per endpoint (default)
+          fuzz-lean — time-bounded directed fuzzing, ~15 min to a few hours
+          fuzz      — full coverage fuzzing, runs until time_budget hours elapsed
+
+        Bug types detected:
+          - 500 InternalServerError on valid inputs (reliability)
+          - 500 on invalid/boundary inputs (robustness)
+          - Resource leak / hung connections
+          - Payload smuggling / injection via malformed grammar values
+
+        Args:
+            openapi_spec:      Path or URL to the OpenAPI 3.x / Swagger 2.0 JSON or YAML spec.
+                               e.g. "/tmp/api.json" or "https://api.example.com/openapi.json"
+            host:              Base URL of the live API target.
+                               e.g. "https://api.example.com"
+            mode:              One of: compile | test | fuzz-lean | fuzz  (default: test)
+            time_budget:       Hours to run fuzz or fuzz-lean mode (default: 1.0).
+                               Ignored for compile/test modes.
+            output_dir:        Directory to write results (default: /tmp/restler_<host>).
+            token_refresh_cmd: Shell command that prints a fresh Bearer token to stdout.
+                               RESTler re-runs it every 600 s to keep sessions alive.
+                               e.g. "curl -s -X POST .../token | jq -r .access_token"
+            additional_args:   Extra CLI flags passed verbatim to the restler binary.
+
+        Returns:
+            Dict with keys:
+              success       – bool
+              mode          – mode that was run
+              host          – target host
+              output_dir    – path to all result files
+              compile       – stdout/stderr from compile step
+              run           – stdout/stderr from the run step
+              findings      – list of bug-bucket findings (bug_type, count, severity)
+        """
+        logger.info(f"{Aegis360Colors.FIRE_RED}[restler] mode={mode} host={host}{Aegis360Colors.RESET}")
+        data = {
+            "openapi_spec":      openapi_spec,
+            "host":              host,
+            "mode":              mode,
+            "time_budget":       time_budget,
+            "output_dir":        output_dir,
+            "token_refresh_cmd": token_refresh_cmd,
+            "additional_args":   additional_args,
+        }
+        result = aegis360_client.safe_post("api/tools/restler", data)
+        if result.get("success"):
+            findings = result.get("findings", [])
+            logger.info(
+                f"{Aegis360Colors.SUCCESS}[restler] Done — {len(findings)} finding(s){Aegis360Colors.RESET}"
+            )
+            if findings:
+                for f in findings:
+                    logger.warning(
+                        f"{Aegis360Colors.FIRE_RED}  [BUG] {f.get('bug_type')} x{f.get('count','?')}"
+                        f" ({f.get('severity','?')}){Aegis360Colors.RESET}"
+                    )
+        else:
+            logger.error(f"{Aegis360Colors.ERROR}[restler] Failed: {result.get('error','')}{Aegis360Colors.RESET}")
+        return result
+
+    # -------------------------------------------------------------------------
     # APIHARVESTER — OWASP API Top 10 Black-Box Attack Automation
     # -------------------------------------------------------------------------
 

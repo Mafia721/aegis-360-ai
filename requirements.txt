@@ -12,7 +12,7 @@
 flask>=2.3.0,<4.0.0             # Web framework for API server (flask import)
 requests>=2.31.0,<3.0.0         # HTTP library (requests import)
 psutil>=5.9.0,<6.0.0            # System utilities (psutil import)
-fastmcp>=0.2.0,<1.0.0           # MCP framework (from mcp.server.fastmcp import FastMCP)
+mcp>=1.0.0,<2.0.0               # MCP framework v1.x (from mcp.server.fastmcp import FastMCP; v2 renamed FastMCP→MCPServer)
 anthropic>=0.40.0               # Claude API SDK for AI-powered analysis
 python-dotenv>=1.0.0            # Load API keys from .env file
 openai>=1.30.0                  # OpenAI-compatible SDK for Qwen3 via OpenRouter

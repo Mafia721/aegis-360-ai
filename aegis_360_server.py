@@ -20867,6 +20867,199 @@ def aws_config_review():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
+# ============================================================================
+# RESTLER — Microsoft REST API Fuzzer
+# ============================================================================
+
+RESTLER_BIN  = Path("/home/kali/.local/bin/restler")
+RESTLER_HOME = Path("/home/kali/restler-fuzzer/restler_bin")
+_RESTLER_ENV = {**os.environ, "DOTNET_ROOT": str(Path.home() / ".dotnet"),
+                "PATH": str(Path.home() / ".dotnet") + ":" + os.environ.get("PATH", "")}
+
+
+def _restler_cmd(args: list) -> list:
+    """Return a restler invocation that always finds dotnet."""
+    return [str(RESTLER_BIN)] + args
+
+
+@app.route("/api/tools/restler", methods=["POST"])
+def restler_scan():
+    """
+    Run Microsoft RESTler against an OpenAPI/Swagger spec.
+
+    Body params:
+      openapi_spec  (str, required) – path or URL to the OpenAPI JSON/YAML spec
+      host          (str, required) – base URL of the target API  e.g. https://api.example.com
+      mode          (str)           – compile | test | fuzz-lean | fuzz  (default: test)
+      time_budget   (float)         – hours to run fuzz/fuzz-lean (default: 1.0)
+      output_dir    (str)           – where to write results      (default: /tmp/restler_<host>)
+      token_refresh_cmd (str)       – shell command that prints a fresh token
+      additional_args (str)         – extra CLI flags passed verbatim to restler
+    """
+    import re, tempfile, shutil
+    try:
+        params       = request.json or {}
+        openapi_spec = params.get("openapi_spec", "")
+        host         = params.get("host", "")
+        mode         = params.get("mode", "test").lower()
+        time_budget  = float(params.get("time_budget", 1.0))
+        output_dir   = params.get("output_dir", "")
+        token_cmd    = params.get("token_refresh_cmd", "")
+        extra_args   = params.get("additional_args", "")
+
+        if not openapi_spec:
+            return jsonify({"error": "openapi_spec is required"}), 400
+        if not host:
+            return jsonify({"error": "host is required"}), 400
+        if mode not in ("compile", "test", "fuzz-lean", "fuzz"):
+            return jsonify({"error": f"invalid mode '{mode}'. Must be compile|test|fuzz-lean|fuzz"}), 400
+        if not RESTLER_BIN.exists():
+            return jsonify({"error": f"restler not found at {RESTLER_BIN}. Run install_restler.sh"}), 500
+
+        # Sanitise host into a filesystem-safe slug for the default output dir
+        host_slug = re.sub(r"[^a-zA-Z0-9._-]", "_", host)
+        if not output_dir:
+            output_dir = f"/tmp/restler_{host_slug}"
+        out = Path(output_dir)
+        compile_dir = out / "compile"
+        run_dir     = out / mode.replace("-", "_")
+        compile_dir.mkdir(parents=True, exist_ok=True)
+        run_dir.mkdir(parents=True, exist_ok=True)
+
+        results = {
+            "success": False,
+            "tool": "restler",
+            "mode": mode,
+            "host": host,
+            "openapi_spec": openapi_spec,
+            "output_dir": str(out),
+            "compile": {},
+            "run": {},
+            "findings": [],
+        }
+
+        # ------------------------------------------------------------------
+        # Step 1 — compile (always required)
+        # ------------------------------------------------------------------
+        logger.info(f"[restler] Compiling spec: {openapi_spec}")
+        compile_cmd = _restler_cmd(["compile", "--api_spec", openapi_spec])
+        try:
+            cp = subprocess.run(
+                compile_cmd, cwd=str(compile_dir),
+                capture_output=True, text=True, timeout=120, env=_RESTLER_ENV
+            )
+            results["compile"] = {
+                "returncode": cp.returncode,
+                "stdout": cp.stdout[-4000:],
+                "stderr": cp.stderr[-2000:],
+            }
+            if cp.returncode != 0:
+                results["compile"]["error"] = "Compile step failed"
+                logger.warning(f"[restler] compile failed: {cp.stderr[:300]}")
+                return jsonify(results)
+        except subprocess.TimeoutExpired:
+            results["compile"]["error"] = "Compile timed out after 120s"
+            return jsonify(results)
+        except Exception as exc:
+            results["compile"]["error"] = str(exc)
+            return jsonify(results)
+
+        if mode == "compile":
+            results["success"] = True
+            return jsonify(results)
+
+        # ------------------------------------------------------------------
+        # Step 2 — locate grammar / dict / settings
+        # ------------------------------------------------------------------
+        grammar_file  = compile_dir / "Compile" / "grammar.py"
+        dict_file     = compile_dir / "Compile" / "dict.json"
+        settings_file = compile_dir / "Compile" / "engine_settings.json"
+
+        if not grammar_file.exists():
+            found = list(compile_dir.glob("**/grammar.py"))
+            if not found:
+                results["compile"]["error"] = "No grammar.py produced after compile"
+                return jsonify(results)
+            grammar_file  = found[0]
+            dict_file     = grammar_file.parent / "dict.json"
+            settings_file = grammar_file.parent / "engine_settings.json"
+
+        # ------------------------------------------------------------------
+        # Step 3 — run the requested mode
+        # ------------------------------------------------------------------
+        run_cmd = _restler_cmd([
+            mode,
+            "--grammar_file",    str(grammar_file),
+            "--dictionary_file", str(dict_file),
+            "--settings",        str(settings_file),
+            "--host",            host.rstrip("/").split("://")[-1],
+        ])
+        if mode in ("fuzz", "fuzz-lean"):
+            run_cmd += ["--time_budget", str(time_budget)]
+        if token_cmd:
+            run_cmd += ["--token_refresh_command", token_cmd,
+                        "--token_refresh_interval", "600"]
+        if extra_args:
+            run_cmd += extra_args.split()
+
+        timeout_secs = 300 if mode == "test" else int(time_budget * 3600) + 60
+        logger.info(f"[restler] Running mode='{mode}' against {host}")
+        try:
+            rp = subprocess.run(
+                run_cmd, cwd=str(run_dir),
+                capture_output=True, text=True,
+                timeout=timeout_secs, env=_RESTLER_ENV
+            )
+            results["run"] = {
+                "returncode": rp.returncode,
+                "stdout": rp.stdout[-8000:],
+                "stderr": rp.stderr[-3000:],
+            }
+        except subprocess.TimeoutExpired:
+            results["run"]["error"] = f"RESTler timed out after {timeout_secs}s"
+        except Exception as exc:
+            results["run"]["error"] = str(exc)
+            return jsonify(results)
+
+        # ------------------------------------------------------------------
+        # Step 4 — parse testing_summary.json for findings
+        # ------------------------------------------------------------------
+        for s_file in run_dir.glob("**/testing_summary.json"):
+            try:
+                summary = json.loads(s_file.read_text())
+                all_bugs = {**summary.get("bug_buckets", {}),
+                            **summary.get("reproducible_bug_buckets", {})}
+                for bug_type, count in all_bugs.items():
+                    if count:
+                        results["findings"].append({
+                            "bug_type": bug_type,
+                            "count": count,
+                            "severity": "high" if "500" in bug_type or "crash" in bug_type.lower() else "medium",
+                            "tool": "restler",
+                            "remediation": "Ensure input validation is complete. "
+                                           "Do not return 5xx on malformed requests.",
+                        })
+            except Exception as parse_exc:
+                logger.warning(f"[restler] parse error: {parse_exc}")
+
+        # Also surface any bug-bucket log files
+        for log_file in run_dir.glob("**/BugBuckets/*.txt"):
+            results["findings"].append({
+                "bug_type": log_file.stem,
+                "evidence_file": str(log_file),
+                "severity": "high" if "500" in log_file.stem else "medium",
+                "tool": "restler",
+            })
+
+        results["success"] = True
+        logger.info(f"[restler] Done. findings={len(results['findings'])} mode={mode} host={host}")
+        return jsonify(results)
+
+    except Exception as exc:
+        logger.error(f"[restler] Unhandled error: {exc}")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
 @app.route("/api/aws/tools-status", methods=["GET"])
 def aws_tools_status():
     """Check install status and version of all AWS cloud review tools."""

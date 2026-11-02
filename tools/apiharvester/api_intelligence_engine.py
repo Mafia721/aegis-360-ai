@@ -956,7 +956,7 @@ class RESTlerAdapter:
 
     def run(self, spec_path: Path, host: str, out_dir: Path) -> List[Finding]:
         findings: List[Finding] = []
-        restler_bin = "/Users/apple/.local/bin/restler"
+        restler_bin = "/home/kali/.local/bin/restler"
         if not os.path.isfile(restler_bin):
             try:
                 res = subprocess.run(["which", "restler"], capture_output=True, text=True)
