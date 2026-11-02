@@ -8742,8 +8742,11 @@ def execute_command(command: str, use_cache: bool = True) -> Dict[str, Any]:
     executor = EnhancedCommandExecutor(command)
     result = executor.execute()
 
-    # Cache successful results (params={} matches the get() key above)
-    if use_cache and result.get("success", False):
+    # Cache successful results. Also cache failed `which` lookups — tool
+    # availability is stable across requests and re-running a failing `which`
+    # on every health-check artificially inflates the telemetry failure count.
+    is_which_check = command.strip().startswith("which ")
+    if use_cache and (result.get("success", False) or is_which_check):
         cache.set(command, {}, result)
 
     return result

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # burp_status.sh — monitor Burp Suite proxy (8080) and MCP bridge (9876) every 5 s
 # shellcheck disable=SC2059
-set -euo pipefail
+# no set -e — polling loop; individual check failures must not exit the script
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOOL_LOG="${PROJECT_ROOT}/logs/toolcalls.jsonl"

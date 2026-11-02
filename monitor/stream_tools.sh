@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # stream_tools.sh — live colour-coded tool-call stream for Aegis-360 monitoring
-set -euo pipefail
+# no set -e — streaming scripts must survive jq parse errors on individual lines
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG="${PROJECT_ROOT}/logs/toolcalls.jsonl"
@@ -50,14 +50,18 @@ tail -F "$LOG" 2>/dev/null | while IFS= read -r line; do
         color="$GREEN"
         cat_label="MCP"
     elif [[ "$tool" == "Bash" ]]; then
-        display="Bash"
-        if [[ "$arg" =~ (^|[[:space:]])(curl|wget|nmap|ffuf|sqlmap|nikto|gobuster|nuclei)([[:space:]]|$) ]]; then
+        # Extract the first real command word from the arg string
+        cmd_word=$(echo "$arg" | grep -oP '(?:^|(?<=\s))(curl|wget|nmap|ffuf|sqlmap|nikto|gobuster|nuclei|nuclei|masscan|rustscan|hydra|dirsearch|feroxbuster|katana|subfinder|amass|httpx|dalfox|wfuzz|xsser|wpscan|arjun|paramspider)(?=\s|$)' | head -1)
+        if [[ -n "$cmd_word" ]]; then
+            display="$cmd_word"
             color="$RED"
             cat_label="BYPASS"
         elif [[ "$arg" =~ (playwright|chromium|browser|puppeteer) ]]; then
+            display="browser"
             color="$CYAN"
             cat_label="BROWSER"
         else
+            display="Bash"
             color="$YELLOW"
             cat_label="BASH"
         fi

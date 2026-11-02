@@ -1,13 +1,3 @@
-# scope.txt — target scope for Aegis-360 monitoring dashboard
-# One entry per line.  Supports suffix matching:
-#   example.com   → matches api.example.com, www.example.com
-#   192.168.1.0   → matches 192.168.1.* (prefix)
-# Lines starting with # are ignored.
-# This file is read by monitor/scope_guard.sh and monitor/statusline.sh.
-# The aegis PreToolUse hook reads .aegis_scope / AEGIS_SCOPE env var.
-#
-# --- ADD YOUR ENGAGEMENT TARGETS BELOW ---
-#
-# example.com
-# 10.10.20.0
-# staging.example.com
+# PT-PZ-2026 — PrivilegeZero engagement scope
+privilegezero.com
+www.privilegezero.com

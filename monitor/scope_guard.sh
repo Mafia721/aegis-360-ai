@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scope_guard.sh — tail toolcalls.jsonl and flag any calls targeting out-of-scope hosts
 # shellcheck disable=SC2059
-set -euo pipefail
+# no set -e — streaming script; individual line failures must not kill the process
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG="${PROJECT_ROOT}/logs/toolcalls.jsonl"
