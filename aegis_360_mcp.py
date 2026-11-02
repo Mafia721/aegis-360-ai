@@ -13149,11 +13149,20 @@ session.fuzz()
             f"interesting URLs, and any exposures found."
         )
         logger.info(f"🔍 run_recon_agent: {target}")
-        return aegis360_client.safe_post("api/agent/run", {
-            "task":     task,
-            "model":    "llama3.3",
-            "max_iter": max_iter,
-        })
+        return {
+            "model":  "claude-code",
+            "target": target,
+            "task":   task,
+            "steps": [
+                f"subfinder -d {target} -silent",
+                f"httpx -l - -silent -title -status-code -tech-detect",
+                f"nmap -sV -sC -T4 --open {target}",
+                f"katana -u https://{target} -d 3 -silent",
+                f"waybackurls {target}",
+                f"nuclei -u https://{target} -t exposures/ -t technologies/ -silent",
+            ],
+            "note": "Claude Code will execute these steps using the available MCP tools.",
+        }
 
     @mcp.tool()
     def run_vuln_agent(target: str, context: str = "", max_iter: int = 15) -> Dict[str, Any]:
@@ -13178,12 +13187,20 @@ session.fuzz()
             f"and exploitation recommendations."
         )
         logger.info(f"🐛 run_vuln_agent: {target}")
-        return aegis360_client.safe_post("api/agent/run", {
-            "task":     task,
-            "model":    "llama3.3",
-            "context":  context,
-            "max_iter": max_iter,
-        })
+        return {
+            "model":   "claude-code",
+            "target":  target,
+            "context": context,
+            "task":    task,
+            "steps": [
+                f"nuclei -u {target} -severity critical,high -silent",
+                f"nikto -h {target} -nointeractive",
+                f"gobuster dir -u {target} -w /usr/share/wordlists/dirb/common.txt -q",
+                f"dalfox url {target} --silence",
+                f"ffuf -u {target}/FUZZ -w /usr/share/wordlists/dirb/common.txt -mc 200,301,302,403 -s",
+            ],
+            "note": "Claude Code will execute these steps using the available MCP tools.",
+        }
 
     @mcp.tool()
     def run_exploit_agent(
@@ -13214,12 +13231,14 @@ session.fuzz()
             f"5. Write a concise exploitation report with screenshots/output as evidence."
         )
         logger.info(f"💥 run_exploit_agent: {target} — {vulnerability[:60]}")
-        return aegis360_client.safe_post("api/agent/run", {
-            "task":     task,
-            "model":    "claude",
-            "context":  context,
-            "max_iter": max_iter,
-        })
+        return {
+            "model":         "claude-code",
+            "target":        target,
+            "vulnerability": vulnerability,
+            "context":       context,
+            "task":          task,
+            "note":          "Claude Code will reason about and exploit this vulnerability using the available MCP tools.",
+        }
 
     # ============================================================================
     # ELECTRON SECURITY — ELECTRONEGATIVITY

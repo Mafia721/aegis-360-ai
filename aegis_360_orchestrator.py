@@ -99,26 +99,20 @@ PHASE_ORDER: List[WorkflowPhase] = [
     WorkflowPhase.END,
 ]
 
-# Phases handled by DeepSeek V4 Pro
-DEEPSEEK_PHASES = {
-    WorkflowPhase.RECON,
-    WorkflowPhase.ENUMERATION,
-    WorkflowPhase.VULNERABILITY_ANALYSIS,
-}
+# All active phases handled by Claude (Claude Code handles all phases)
+DEEPSEEK_PHASES: set = set()
 
 # Phases handled by Claude API
 CLAUDE_PHASES = {
+    WorkflowPhase.RECON,
+    WorkflowPhase.ENUMERATION,
+    WorkflowPhase.VULNERABILITY_ANALYSIS,
     WorkflowPhase.EXPLOITATION,
     WorkflowPhase.REPORTING,
 }
 
-# Claude is FORBIDDEN in these phases — attempts raise PhaseViolationError
-CLAUDE_FORBIDDEN_PHASES = {
-    WorkflowPhase.RECON,
-    WorkflowPhase.ENUMERATION,
-    WorkflowPhase.VULNERABILITY_ANALYSIS,
-    WorkflowPhase.VALIDATION_GATE,
-}
+# No phases forbidden for Claude — Claude Code handles all phases
+CLAUDE_FORBIDDEN_PHASES: set = set()
 
 # All phases that must be COMPLETED before the gate can open
 PRE_EXPLOITATION_PHASES = [
@@ -129,9 +123,8 @@ PRE_EXPLOITATION_PHASES = [
 
 # Human-readable model names for logs
 MODEL_LABELS = {
-    "orchestrator":    "Claude Code (Orchestrator)",
-    "deepseek-v4-pro": "DeepSeek V4 Pro",
-    "claude-api":      "Claude API (claude-sonnet-4-6)",
+    "orchestrator": "Claude Code (Orchestrator)",
+    "claude-api":   "Claude Code (claude-sonnet-4-6)",
 }
 
 
@@ -389,9 +382,9 @@ class WorkflowState:
 
     # Assigned model per phase
     assigned_model: Dict[str, str] = field(default_factory=lambda: {
-        WorkflowPhase.RECON.value:                  "deepseek-v4-pro",
-        WorkflowPhase.ENUMERATION.value:            "deepseek-v4-pro",
-        WorkflowPhase.VULNERABILITY_ANALYSIS.value: "deepseek-v4-pro",
+        WorkflowPhase.RECON.value:                  "claude-api",
+        WorkflowPhase.ENUMERATION.value:            "claude-api",
+        WorkflowPhase.VULNERABILITY_ANALYSIS.value: "claude-api",
         WorkflowPhase.EXPLOITATION.value:           "claude-api",
         WorkflowPhase.REPORTING.value:              "claude-api",
         WorkflowPhase.VALIDATION_GATE.value:        "orchestrator",
@@ -806,9 +799,7 @@ class ModelOrchestrator:
         wf = self._get_workflow(workflow_id)
         phase = wf.current_phase
 
-        if phase in DEEPSEEK_PHASES:
-            return self._dispatch_to_deepseek(wf, phase, task, tool_outputs, max_tokens)
-        elif phase in CLAUDE_PHASES:
+        if phase in CLAUDE_PHASES:
             return self._dispatch_to_claude(wf, phase, task, tool_outputs, max_tokens)
         else:
             raise ValueError(
@@ -1321,12 +1312,6 @@ def orchestration_status():
         "success":   True,
         "service":   "Aegis-360 Multi-Model Orchestration Engine",
         "models": {
-            "deepseek_v4_pro": {
-                "enabled":  orchestrator._deepseek.enabled,
-                "model_id": orchestrator._deepseek.model_id,
-                "provider": "OpenRouter",
-                "phases":   [p.value for p in DEEPSEEK_PHASES],
-            },
             "claude_api": {
                 "enabled":  orchestrator._claude.enabled,
                 "model_id": ClaudeOrchestrationEngine.MODEL,

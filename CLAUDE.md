@@ -8,7 +8,8 @@ Before running any recon or tool calls, complete this checklist:
 ```bash
 curl -s http://127.0.0.1:8888/health | python3 -m json.tool | grep status
 ```
-If not running: `sudo python3 /home/kali/aegis-360-ai-master/aegis_360_server.py --port 8888 &`
+If not running: `/home/kali/aegis-360-ai-master/aegis-360-env/bin/python3 /home/kali/aegis-360-ai-master/aegis_360_server.py --port 8888 &`
+(Must use venv Python — system Python lacks `anthropic` and `openai` packages.)
 
 ### 2. Set the engagement scope
 ```bash
@@ -39,12 +40,12 @@ Save the returned `workflow_id`. Pass it to every subsequent orchestration call.
 
 | Phase | Model | Invoke via |
 |---|---|---|
-| RECON | DeepSeek V4 Pro | `POST /api/orchestration/advance` with `phase=RECON` |
-| ENUMERATION | DeepSeek V4 Pro | `POST /api/orchestration/advance` with `phase=ENUMERATION` |
-| VULNERABILITY_ANALYSIS | DeepSeek V4 Pro | `POST /api/orchestration/advance` |
+| RECON | Claude Code (claude-sonnet-4-6) | `POST /api/orchestration/advance` with `phase=RECON` |
+| ENUMERATION | Claude Code (claude-sonnet-4-6) | `POST /api/orchestration/advance` with `phase=ENUMERATION` |
+| VULNERABILITY_ANALYSIS | Claude Code (claude-sonnet-4-6) | `POST /api/orchestration/advance` |
 | VALIDATION_GATE | Orchestrator (auto) | Automatic after VULNERABILITY_ANALYSIS |
-| EXPLOITATION | Claude API | Only unlocked after gate passes |
-| REPORTING | Claude API | `POST /api/orchestration/report` |
+| EXPLOITATION | Claude Code (claude-sonnet-4-6) | Only unlocked after gate passes |
+| REPORTING | Claude Code (claude-sonnet-4-6) | `POST /api/orchestration/report` |
 
 **Do not use raw Bash curl for pentest HTTP calls when an MCP tool exists for it.**
 Use the MCP tools (available in this session via the `aegis-360-ai` server).
