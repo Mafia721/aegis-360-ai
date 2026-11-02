@@ -1,4 +1,5 @@
 {
+  "enabledMcpjsonServers": ["aegis-360-ai", "graphify"],
   "hooks": {
     "PreToolUse": [
       {
