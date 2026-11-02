@@ -12,6 +12,42 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/kali/aegis-360-ai-master/monitor/log_tool_call.py",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/kali/aegis-360-ai-master/monitor/log_agent.py",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/kali/aegis-360-ai-master/monitor/log_agent.py",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
     ]
   }
 }
