@@ -701,16 +701,16 @@ class ModelOrchestrator:
         idx = PHASE_ORDER.index(current)
         next_phase = PHASE_ORDER[idx + 1]
 
+        # Mark current phase completed before any gate check
+        if current not in {WorkflowPhase.START, WorkflowPhase.END,
+                           WorkflowPhase.VALIDATION_GATE}:
+            wf.phase_status[current.value] = PhaseStatus.COMPLETED.value
+
         # When advancing to VALIDATION_GATE, run it automatically
         if next_phase == WorkflowPhase.VALIDATION_GATE:
             self._run_validation_gate(wf)
             # If gate passed, gate is set to COMPLETED and we skip to EXPLOITATION
             return wf
-
-        # Mark current phase completed (unless it's START, VALIDATION_GATE, etc.)
-        if current not in {WorkflowPhase.START, WorkflowPhase.END,
-                           WorkflowPhase.VALIDATION_GATE}:
-            wf.phase_status[current.value] = PhaseStatus.COMPLETED.value
 
         wf.current_phase = next_phase
         wf.phase_status[next_phase.value] = PhaseStatus.IN_PROGRESS.value
